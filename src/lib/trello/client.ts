@@ -1,7 +1,7 @@
 // Server-only Trello reader. Read-only: this file never writes to Trello.
 // Credentials come from env vars and never reach the browser.
 import "server-only";
-import type { RawCard } from "../queue/types";
+import type { Move, RawCard } from "../queue/types";
 
 const BASE = "https://api.trello.com/1";
 
@@ -58,4 +58,32 @@ export async function fetchBoardCards(): Promise<RawCard[]> {
     listName: nameByListId.get(c.idList) ?? "",
     labels: (c.labels ?? []).map((l) => ({ name: l.name ?? "" })),
   }));
+}
+
+interface TrelloMoveAction {
+  date: string;
+  data?: {
+    card?: { id: string; name: string };
+    listAfter?: { name: string };
+  };
+}
+
+/**
+ * Fetch recent list-move history (one bounded call — the last 1,000 moves).
+ * Used to derive turnaround, "as of" stage dates, and recently-completed.
+ * Depth is capped by design; documented in OPERATIONS.md.
+ */
+export async function fetchListMoves(): Promise<Move[]> {
+  const { boardId } = creds();
+  const actions = await get<TrelloMoveAction[]>(
+    `/boards/${boardId}/actions?filter=updateCard:idList&limit=1000`,
+  );
+  return actions
+    .filter((a) => a.data?.card?.id && a.data.listAfter?.name)
+    .map((a) => ({
+      cardId: a.data!.card!.id,
+      cardName: a.data!.card!.name,
+      toList: a.data!.listAfter!.name,
+      at: a.date,
+    }));
 }

@@ -30,6 +30,12 @@ export function statusForList(listName: string): Status {
   return STATUS_BY_LIST.get(norm(listName)) ?? "hidden";
 }
 
+/** A Trello card's creation time is encoded in the first 8 hex chars of its id. */
+export function cardCreatedAt(id: string): string {
+  const seconds = parseInt(id.substring(0, 8), 16);
+  return new Date(seconds * 1000).toISOString();
+}
+
 /** Turn a raw Trello card into a mapped Project. */
 export function toProject(card: RawCard): Project {
   const flags: Flag[] = [];
@@ -58,6 +64,8 @@ export function toProject(card: RawCard): Project {
     departments,
     flags,
     type,
+    createdAt: cardCreatedAt(card.id),
+    enteredStageAt: null,
   };
 }
 

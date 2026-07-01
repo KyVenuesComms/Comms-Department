@@ -40,4 +40,35 @@ export interface Project {
   departments: string[];
   flags: Flag[];
   type: ProjectType | null;
+  /** When the card was created (≈ added to the queue). Derived from the id. */
+  createdAt: string;
+  /** When the card entered its current stage. Null if unknown (older than history). */
+  enteredStageAt: string | null;
+}
+
+/** A single list-move from Trello's action history. */
+export interface Move {
+  cardId: string;
+  cardName: string;
+  /** Name of the list the card moved into. */
+  toList: string;
+  /** ISO timestamp of the move. */
+  at: string;
+}
+
+/** Computed, board-wide numbers. Built once per refresh, never in the UI. */
+export interface QueueMetrics {
+  /** Typical time from request to "out for approval," with buffer. Null if too few samples. */
+  turnaround: {
+    quotedDays: number;
+    medianDays: number;
+    sampleSize: number;
+  } | null;
+  /** Jobs that reached Closed recently, newest first. */
+  recentlyCompleted: { id: string; name: string; at: string }[];
+  /** Per-department stage counts (keyed by department label). */
+  perDepartment: Record<
+    string,
+    { requested: number; inProgress: number; outForApproval: number; total: number }
+  >;
 }

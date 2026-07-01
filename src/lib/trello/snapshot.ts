@@ -3,8 +3,14 @@
 import "server-only";
 import { REFRESH_MS } from "../queue/config";
 import { sortProjects, toProject } from "../queue/map";
-import type { Project } from "../queue/types";
-import { fetchBoardCards } from "./client";
+import {
+  perDepartment,
+  recentlyCompleted,
+  stageEntryDates,
+  turnaround,
+} from "../queue/metrics";
+import type { Project, QueueMetrics } from "../queue/types";
+import { fetchBoardCards, fetchListMoves } from "./client";
 
 export interface QueueSnapshot {
   requested: Project[];
@@ -14,6 +20,8 @@ export interface QueueSnapshot {
   closed: Project[];
   /** Active work = requested + in progress + out for approval. The headline. */
   activeTotal: number;
+  /** Computed board-wide numbers (turnaround, recently completed, per-dept). */
+  metrics: QueueMetrics;
   /** When this data was read from Trello (ISO string). */
   updatedAt: string;
   /** True when Trello was unreachable and we're serving the last good copy. */
@@ -26,7 +34,19 @@ let lastGood: QueueSnapshot | null = null;
 let lastFetchedMs = 0;
 
 async function build(): Promise<QueueSnapshot> {
-  const projects = (await fetchBoardCards()).map(toProject);
+  const [cards, moves] = await Promise.all([
+    fetchBoardCards(),
+    // Move history is an enhancement, not load-bearing — never let it blank the board.
+    fetchListMoves().catch((err) => {
+      console.warn("[queue] move history unavailable:", err);
+      return [];
+    }),
+  ]);
+
+  const projects = cards.map(toProject);
+  const enteredAt = stageEntryDates(moves);
+  for (const p of projects) p.enteredStageAt = enteredAt.get(p.id) ?? null;
+
   const requested = sortProjects(
     projects.filter((p) => p.status === "requested"),
   );
@@ -37,12 +57,21 @@ async function build(): Promise<QueueSnapshot> {
     projects.filter((p) => p.status === "out-for-approval"),
   );
   const closed = projects.filter((p) => p.status === "closed");
+
+  const nowMs = Date.now();
+  const metrics: QueueMetrics = {
+    turnaround: turnaround(moves, nowMs),
+    recentlyCompleted: recentlyCompleted(moves, nowMs),
+    perDepartment: perDepartment(requested, inProgress, outForApproval),
+  };
+
   return {
     requested,
     inProgress,
     outForApproval,
     closed,
     activeTotal: requested.length + inProgress.length + outForApproval.length,
+    metrics,
     updatedAt: new Date().toISOString(),
     stale: false,
   };
@@ -61,11 +90,14 @@ export async function getQueueSnapshot(): Promise<QueueSnapshot> {
     const snapshot = await build();
     lastGood = snapshot;
     lastFetchedMs = now;
+    const t = snapshot.metrics.turnaround;
     console.info(
       `[queue] synced: ${snapshot.requested.length} requested, ` +
         `${snapshot.inProgress.length} in progress, ` +
         `${snapshot.outForApproval.length} out for approval, ` +
-        `${snapshot.closed.length} closed`,
+        `${snapshot.closed.length} closed | ` +
+        `turnaround: ${t ? `~${t.quotedDays}d (median ${t.medianDays}d, n=${t.sampleSize})` : "n/a"}, ` +
+        `recently completed: ${snapshot.metrics.recentlyCompleted.length}`,
     );
     return snapshot;
   } catch (err) {

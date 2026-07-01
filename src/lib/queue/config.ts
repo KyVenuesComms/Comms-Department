@@ -40,3 +40,17 @@ export const DEPARTMENT_LABELS: string[] = ["Expositions"];
 
 /** How often to re-read Trello. ONE home for the refresh interval (~10 min). */
 export const REFRESH_MS = 10 * 60 * 1000;
+
+// --- Metric tuning (one place to adjust the numbers departments see) ---
+
+/** Only look at approvals from the last N days when computing turnaround. */
+export const TURNAROUND_WINDOW_DAYS = 60;
+/** Don't quote a turnaround until we have at least this many samples. */
+export const TURNAROUND_MIN_SAMPLES = 5;
+/** Buffer added to the median so quotes stay realistic during busy periods. */
+export const TURNAROUND_BUFFER_DAYS = 2;
+
+/** "Recently completed" shows jobs closed within this many days… */
+export const RECENTLY_COMPLETED_DAYS = 7;
+/** …up to this many entries. */
+export const RECENTLY_COMPLETED_MAX = 12;
