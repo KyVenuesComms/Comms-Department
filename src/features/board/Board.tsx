@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Flag, ListChecks, RefreshCw } from "lucide-react";
+import { Flag, ListChecks, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Project, ProjectType } from "@/lib/queue/types";
@@ -102,39 +102,6 @@ export function Board({
               : `Updated ${agoLabel(updatedAt, now)}`}
           </p>
         </header>
-
-        {/* Prominent flow stepper */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-center gap-1.5">
-            {LIVE_STAGES.map((key, i) => {
-              const m = STAGE_META[key];
-              const Icon = m.Icon;
-              return (
-                <div key={key} className="flex flex-1 items-center gap-1.5">
-                  <div
-                    className={`flex flex-1 items-center justify-center gap-2.5 rounded-xl px-3 py-3 ${m.headerBg}`}
-                  >
-                    <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-white ${m.chipBg}`}
-                    >
-                      <Icon size={18} aria-hidden="true" />
-                    </span>
-                    <span className={`text-base font-semibold ${m.headerText}`}>
-                      <span className="opacity-60">{i + 1}</span> {m.label}
-                    </span>
-                  </div>
-                  {i < LIVE_STAGES.length - 1 && (
-                    <ChevronRight
-                      size={20}
-                      className="shrink-0 text-zinc-300 dark:text-zinc-600"
-                      aria-hidden="true"
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Prioritization explainer — collapsed by default */}
         <details className="mt-6 rounded-xl bg-sky-50 px-4 py-3 dark:bg-sky-950/40">
