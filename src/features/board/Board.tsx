@@ -69,21 +69,17 @@ export function Board({
   return (
     <div className="min-h-full bg-zinc-50 px-4 py-8 font-sans sm:px-6 dark:bg-zinc-950">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
+        {/* Title + workload */}
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700 dark:text-sky-400">
-              Creative team workload
-            </p>
-            <div className="mt-1 flex items-baseline gap-3">
-              <span className="text-4xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+              Kentucky Venues Work Order Status
+            </h1>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
                 {activeTotal}
-              </span>
-              <span className="text-lg text-zinc-600 dark:text-zinc-400">
-                active projects
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              </span>{" "}
+              active projects ·{" "}
               <span className="tabular-nums text-sky-700 dark:text-sky-400">
                 {requested.length}
               </span>{" "}
@@ -107,45 +103,46 @@ export function Board({
           </p>
         </header>
 
-        {/* Flow stepper */}
-        <div className="mt-6 flex items-center gap-2">
-          {LIVE_STAGES.map((key, i) => {
-            const m = STAGE_META[key];
-            const Icon = m.Icon;
-            return (
-              <div key={key} className="flex flex-1 items-center gap-2">
-                <div
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${m.headerBg} ${m.headerText}`}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  <span>
-                    {i + 1} · {m.label}
-                  </span>
+        {/* Prominent flow stepper */}
+        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center gap-1.5">
+            {LIVE_STAGES.map((key, i) => {
+              const m = STAGE_META[key];
+              const Icon = m.Icon;
+              return (
+                <div key={key} className="flex flex-1 items-center gap-1.5">
+                  <div
+                    className={`flex flex-1 items-center justify-center gap-2.5 rounded-xl px-3 py-3 ${m.headerBg}`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-white ${m.chipBg}`}
+                    >
+                      <Icon size={18} aria-hidden="true" />
+                    </span>
+                    <span className={`text-base font-semibold ${m.headerText}`}>
+                      <span className="opacity-60">{i + 1}</span> {m.label}
+                    </span>
+                  </div>
+                  {i < LIVE_STAGES.length - 1 && (
+                    <ChevronRight
+                      size={20}
+                      className="shrink-0 text-zinc-300 dark:text-zinc-600"
+                      aria-hidden="true"
+                    />
+                  )}
                 </div>
-                {i < LIVE_STAGES.length - 1 && (
-                  <ChevronRight
-                    size={18}
-                    className="shrink-0 text-zinc-400"
-                    aria-hidden="true"
-                  />
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Unified search */}
-        <div className="mt-6">
-          <ProjectSearch />
-        </div>
-
-        {/* Prioritization explainer */}
-        <details open className="mt-6 rounded-xl bg-sky-50 p-4 dark:bg-sky-950/40">
+        {/* Prioritization explainer — collapsed by default */}
+        <details className="mt-6 rounded-xl bg-sky-50 px-4 py-3 dark:bg-sky-950/40">
           <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-sky-800 dark:text-sky-300">
             <ListChecks size={15} aria-hidden="true" />
             How your projects are prioritized
           </summary>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
             <li>
               <strong className="font-medium">
                 CEO &amp; Chief of Staff requests
@@ -182,8 +179,9 @@ export function Board({
           </div>
         </details>
 
-        {/* Filters */}
+        {/* Control bar: search + department + type, together */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
+          <ProjectSearch />
           <select
             aria-label="Filter by department"
             value={dept}
@@ -193,8 +191,8 @@ export function Board({
             <option value="all">All departments</option>
             <option value="Expositions">Expositions</option>
           </select>
-          <span className="text-xs text-zinc-400">type:</span>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-zinc-400">type:</span>
             {TYPES.map((t) => (
               <button
                 key={t}

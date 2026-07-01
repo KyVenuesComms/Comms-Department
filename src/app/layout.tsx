@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Work Order Status",
+  title: "Kentucky Venues Work Order Status",
   description: "Live status of creative team project requests.",
 };
 
