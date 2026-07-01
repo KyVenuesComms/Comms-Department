@@ -1,10 +1,12 @@
 "use client";
 
+import { ChevronRight, Flag, ListChecks, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Project, ProjectType } from "@/lib/queue/types";
 import { ProjectCard } from "./ProjectCard";
-import { ClosedSearch } from "./ClosedSearch";
+import { ProjectSearch } from "./ProjectSearch";
+import { LIVE_STAGES, STAGE_META } from "./stages";
 
 const UI_REFRESH_MS = 5 * 60 * 1000; // pull fresh server data every 5 min
 const TICK_MS = 30 * 1000; // update "x ago" twice a minute
@@ -17,13 +19,13 @@ function agoLabel(updatedAt: string, now: number): string {
   const min = Math.floor(diff / 60000);
   if (min < 1) return "just now";
   if (min < 60) return `${min} min ago`;
-  const hr = Math.floor(min / 60);
-  return `${hr} hr ago`;
+  return `${Math.floor(min / 60)} hr ago`;
 }
 
 interface BoardProps {
   requested: Project[];
   inProgress: Project[];
+  outForApproval: Project[];
   closedCount: number;
   activeTotal: number;
   updatedAt: string;
@@ -33,6 +35,7 @@ interface BoardProps {
 export function Board({
   requested,
   inProgress,
+  outForApproval,
   closedCount,
   activeTotal,
   updatedAt,
@@ -43,7 +46,6 @@ export function Board({
   const [type, setType] = useState<ProjectType | "all">("all");
   const [now, setNow] = useState(() => new Date(updatedAt).getTime());
 
-  // Keep "updated x ago" ticking, and pull fresh server data periodically.
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), TICK_MS);
     const refresh = setInterval(() => router.refresh(), UI_REFRESH_MS);
@@ -53,14 +55,16 @@ export function Board({
     };
   }, [router]);
 
-  const match = useMemo(() => {
-    return (p: Project) =>
+  const byStage = useMemo(() => {
+    const pass = (p: Project) =>
       (dept === "all" || p.departments.includes(dept)) &&
       (type === "all" || p.type === type);
-  }, [dept, type]);
-
-  const req = useMemo(() => requested.filter(match), [requested, match]);
-  const prog = useMemo(() => inProgress.filter(match), [inProgress, match]);
+    return {
+      requested: requested.filter(pass),
+      "in-progress": inProgress.filter(pass),
+      "out-for-approval": outForApproval.filter(pass),
+    };
+  }, [requested, inProgress, outForApproval, dept, type]);
 
   return (
     <div className="min-h-full bg-zinc-50 px-4 py-8 font-sans sm:px-6 dark:bg-zinc-950">
@@ -88,22 +92,57 @@ export function Board({
                 {inProgress.length}
               </span>{" "}
               in progress ·{" "}
+              <span className="tabular-nums text-emerald-700 dark:text-emerald-500">
+                {outForApproval.length}
+              </span>{" "}
+              out for approval ·{" "}
               <span className="tabular-nums">{closedCount}</span> closed
             </p>
           </div>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          <p className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+            <RefreshCw size={12} aria-hidden="true" />
             {stale
               ? "Showing last good data — Trello was unreachable"
               : `Updated ${agoLabel(updatedAt, now)}`}
           </p>
         </header>
 
+        {/* Flow stepper */}
+        <div className="mt-6 flex items-center gap-2">
+          {LIVE_STAGES.map((key, i) => {
+            const m = STAGE_META[key];
+            const Icon = m.Icon;
+            return (
+              <div key={key} className="flex flex-1 items-center gap-2">
+                <div
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${m.headerBg} ${m.headerText}`}
+                >
+                  <Icon size={16} aria-hidden="true" />
+                  <span>
+                    {i + 1} · {m.label}
+                  </span>
+                </div>
+                {i < LIVE_STAGES.length - 1 && (
+                  <ChevronRight
+                    size={18}
+                    className="shrink-0 text-zinc-400"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Unified search */}
+        <div className="mt-6">
+          <ProjectSearch />
+        </div>
+
         {/* Prioritization explainer */}
-        <details
-          open
-          className="mt-6 rounded-xl bg-sky-50 p-4 dark:bg-sky-950/40"
-        >
-          <summary className="cursor-pointer text-sm font-medium text-sky-800 dark:text-sky-300">
+        <details open className="mt-6 rounded-xl bg-sky-50 p-4 dark:bg-sky-950/40">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-sky-800 dark:text-sky-300">
+            <ListChecks size={15} aria-hidden="true" />
             How your projects are prioritized
           </summary>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
@@ -122,21 +161,25 @@ export function Board({
               next.
             </li>
             <li>
-              <strong className="font-medium">Print &amp; signage</strong>{" "}
-              before digital when timing is otherwise equal.
+              <strong className="font-medium">Print &amp; signage</strong> before
+              digital when timing is otherwise equal.
             </li>
             <li>
-              <strong className="font-medium">Missing info goes to the back</strong>{" "}
-              — incomplete requests wait (or aren&rsquo;t accepted) until you
-              send what&rsquo;s needed.
+              <strong className="font-medium">
+                Missing info goes to the back
+              </strong>{" "}
+              until you send what&rsquo;s needed.
             </li>
           </ol>
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            “Submitted Past Deadline” means the request arrived after
-            Communications&rsquo; last call for submissions — we&rsquo;ll do our
-            best, but these aren&rsquo;t guaranteed. They&rsquo;re worked in
-            normal order.
-          </p>
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+            <Flag size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <p>
+              <strong className="font-semibold">Submitted after the deadline?</strong>{" "}
+              If a request arrives after Communications&rsquo; last call for
+              submissions, we&rsquo;ll do our best — but it isn&rsquo;t
+              guaranteed, and it&rsquo;s worked in normal order.
+            </p>
+          </div>
         </details>
 
         {/* Filters */}
@@ -168,38 +211,47 @@ export function Board({
           </div>
         </div>
 
-        {/* Columns */}
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          <Column title="Requested" dotClass="bg-sky-500" items={req} />
-          <Column title="In progress" dotClass="bg-amber-500" items={prog} />
+        {/* Three-stage flow columns */}
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
+          {LIVE_STAGES.map((key) => (
+            <Column key={key} stageKey={key} items={byStage[key]} />
+          ))}
         </div>
-
-        <ClosedSearch />
       </div>
     </div>
   );
 }
 
 function Column({
-  title,
-  dotClass,
+  stageKey,
   items,
 }: {
-  title: string;
-  dotClass: string;
+  stageKey: (typeof LIVE_STAGES)[number];
   items: Project[];
 }) {
   const [showAll, setShowAll] = useState(false);
+  const m = STAGE_META[stageKey];
+  const Icon = m.Icon;
   const visible = showAll ? items : items.slice(0, INITIAL_CAP);
   return (
     <section>
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-        <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} aria-hidden="true" />
-        {title}
-        <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+      <div
+        className={`mb-3 flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${m.headerBg}`}
+      >
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-lg text-white ${m.chipBg}`}
+        >
+          <Icon size={16} aria-hidden="true" />
+        </span>
+        <span className={`flex-1 text-base font-semibold ${m.headerText}`}>
+          {m.label}
+        </span>
+        <span
+          className={`rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold tabular-nums dark:bg-black/20 ${m.headerText}`}
+        >
           {items.length}
         </span>
-      </h2>
+      </div>
       <div className="space-y-2.5">
         {visible.length === 0 ? (
           <p className="px-1 py-2 text-sm text-zinc-400">Nothing here.</p>
@@ -212,7 +264,7 @@ function Column({
           onClick={() => setShowAll(true)}
           className="mt-3 w-full rounded-lg border border-dashed border-zinc-300 py-2 text-sm text-sky-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-sky-400 dark:hover:bg-zinc-900"
         >
-          Show all {items.length} {title.toLowerCase()}
+          Show all {items.length}
         </button>
       )}
     </section>

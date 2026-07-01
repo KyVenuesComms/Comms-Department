@@ -1,7 +1,12 @@
 // Shared vocabulary for the queue. Same names everywhere (house rule).
 
 /** The stages a department sees. "hidden" = never shown on the board. */
-export type Status = "requested" | "in-progress" | "closed" | "hidden";
+export type Status =
+  | "requested"
+  | "in-progress"
+  | "out-for-approval"
+  | "closed"
+  | "hidden";
 
 /** Project-type labels (closed set). */
 export type ProjectType = "Print" | "Signage" | "Digital";

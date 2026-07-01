@@ -29,6 +29,7 @@ export default async function Home() {
     <Board
       requested={snapshot.requested}
       inProgress={snapshot.inProgress}
+      outForApproval={snapshot.outForApproval}
       closedCount={snapshot.closed.length}
       activeTotal={snapshot.activeTotal}
       updatedAt={snapshot.updatedAt}

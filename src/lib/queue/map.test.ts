@@ -12,7 +12,10 @@ describe("statusForList", () => {
   it("maps in-progress-bucket lists", () => {
     expect(statusForList("In Progress")).toBe("in-progress");
     expect(statusForList("Department Review")).toBe("in-progress");
-    expect(statusForList("Out For Approval")).toBe("in-progress");
+  });
+
+  it("maps Out For Approval to its own stage", () => {
+    expect(statusForList("Out For Approval")).toBe("out-for-approval");
   });
 
   it("maps the closed bucket", () => {

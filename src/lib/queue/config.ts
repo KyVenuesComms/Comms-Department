@@ -16,7 +16,8 @@ export const LISTS_BY_STATUS: Record<Exclude<Status, "hidden">, string[]> = {
     "Outsourced",
     "Up Next",
   ],
-  "in-progress": ["In Progress", "Department Review", "Out For Approval"],
+  "in-progress": ["In Progress", "Department Review"],
+  "out-for-approval": ["Out For Approval"],
   closed: ["Closed Jobs"],
 };
 

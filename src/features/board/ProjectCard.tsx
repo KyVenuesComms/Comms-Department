@@ -1,13 +1,34 @@
-import type { Flag, Project } from "@/lib/queue/types";
+import {
+  CalendarClock,
+  CircleHelp,
+  Flame,
+  Monitor,
+  Printer,
+  Signpost,
+  type LucideIcon,
+} from "lucide-react";
+import type { Flag, Project, ProjectType } from "@/lib/queue/types";
 
-// Flags always carry text + color (never color alone — accessibility house rule).
-const FLAG_STYLE: Record<Flag, string> = {
-  "High Priority":
-    "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
-  "Submitted Past Deadline":
-    "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
-  "Waiting for Info":
-    "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
+// Flags always carry text + icon + color (never color alone — accessibility).
+const FLAG_STYLE: Record<Flag, { cls: string; Icon: LucideIcon }> = {
+  "High Priority": {
+    cls: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
+    Icon: Flame,
+  },
+  "Submitted Past Deadline": {
+    cls: "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+    Icon: CalendarClock,
+  },
+  "Waiting for Info": {
+    cls: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
+    Icon: CircleHelp,
+  },
+};
+
+const TYPE_ICON: Record<ProjectType, LucideIcon> = {
+  Print: Printer,
+  Signage: Signpost,
+  Digital: Monitor,
 };
 
 export function ProjectCard({ project }: { project: Project }) {
@@ -30,18 +51,26 @@ export function ProjectCard({ project }: { project: Project }) {
           </span>
         ))}
         {project.type && (
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            {(() => {
+              const Icon = TYPE_ICON[project.type];
+              return <Icon size={12} aria-hidden="true" />;
+            })()}
             {project.type}
           </span>
         )}
-        {project.flags.map((f) => (
-          <span
-            key={f}
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${FLAG_STYLE[f]}`}
-          >
-            {f}
-          </span>
-        ))}
+        {project.flags.map((f) => {
+          const { cls, Icon } = FLAG_STYLE[f];
+          return (
+            <span
+              key={f}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
+            >
+              <Icon size={12} aria-hidden="true" />
+              {f}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

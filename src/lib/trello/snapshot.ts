@@ -9,9 +9,10 @@ import { fetchBoardCards } from "./client";
 export interface QueueSnapshot {
   requested: Project[];
   inProgress: Project[];
-  /** Closed jobs — used by the history search, not shown on the live board. */
+  outForApproval: Project[];
+  /** Closed jobs — searchable, not shown as a live column. */
   closed: Project[];
-  /** Active work = requested + in progress. The headline workload number. */
+  /** Active work = requested + in progress + out for approval. The headline. */
   activeTotal: number;
   /** When this data was read from Trello (ISO string). */
   updatedAt: string;
@@ -32,12 +33,16 @@ async function build(): Promise<QueueSnapshot> {
   const inProgress = sortProjects(
     projects.filter((p) => p.status === "in-progress"),
   );
+  const outForApproval = sortProjects(
+    projects.filter((p) => p.status === "out-for-approval"),
+  );
   const closed = projects.filter((p) => p.status === "closed");
   return {
     requested,
     inProgress,
+    outForApproval,
     closed,
-    activeTotal: requested.length + inProgress.length,
+    activeTotal: requested.length + inProgress.length + outForApproval.length,
     updatedAt: new Date().toISOString(),
     stale: false,
   };
@@ -59,6 +64,7 @@ export async function getQueueSnapshot(): Promise<QueueSnapshot> {
     console.info(
       `[queue] synced: ${snapshot.requested.length} requested, ` +
         `${snapshot.inProgress.length} in progress, ` +
+        `${snapshot.outForApproval.length} out for approval, ` +
         `${snapshot.closed.length} closed`,
     );
     return snapshot;
