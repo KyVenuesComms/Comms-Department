@@ -12,6 +12,7 @@ describe("statusForList", () => {
   it("maps in-progress-bucket lists", () => {
     expect(statusForList("In Progress")).toBe("in-progress");
     expect(statusForList("Department Review")).toBe("in-progress");
+    expect(statusForList("Out For Approval")).toBe("in-progress");
   });
 
   it("maps the closed bucket", () => {
@@ -47,13 +48,13 @@ describe("toProject", () => {
       card({
         labels: [
           { name: "Expositions" },
-          { name: "High-Priority" },
+          { name: "High Priority" },
           { name: "Print" },
         ],
       }),
     );
     expect(p.departments).toEqual(["Expositions"]);
-    expect(p.flags).toEqual(["High-Priority"]);
+    expect(p.flags).toEqual(["High Priority"]);
     expect(p.type).toBe("Print");
     expect(p.status).toBe("requested");
   });
@@ -64,20 +65,29 @@ describe("toProject", () => {
     expect(p.type).toBe("Digital");
   });
 
-  it("keeps multiple flags and multiple departments", () => {
+  it("keeps multiple flags and ignores non-department labels", () => {
     const p = toProject(
       card({
         labels: [
           { name: "Waiting for Info" },
           { name: "Submitted Past Deadline" },
           { name: "Expositions" },
-          { name: "Marketing" },
+          { name: "Red7e" }, // vendor — not a known department, ignored
+          { name: "Bre" }, // person — ignored
         ],
       }),
     );
     expect(p.flags).toEqual(["Waiting for Info", "Submitted Past Deadline"]);
-    expect(p.departments).toEqual(["Expositions", "Marketing"]);
+    expect(p.departments).toEqual(["Expositions"]);
     expect(p.type).toBeNull();
+  });
+
+  it("matches labels case-insensitively (real board uses ALL CAPS)", () => {
+    const p = toProject(
+      card({ labels: [{ name: "SIGNAGE" }, { name: "WAITING FOR INFO" }] }),
+    );
+    expect(p.type).toBe("Signage");
+    expect(p.flags).toEqual(["Waiting for Info"]);
   });
 });
 
@@ -95,7 +105,7 @@ function proj(over: Partial<Project>): Project {
 
 describe("priority sorting", () => {
   it("floats High-Priority up and sinks Waiting-for-Info", () => {
-    const high = proj({ id: "high", flags: ["High-Priority"] });
+    const high = proj({ id: "high", flags: ["High Priority"] });
     const plain = proj({ id: "plain" });
     const waiting = proj({ id: "waiting", flags: ["Waiting for Info"] });
     const order = sortProjects([plain, waiting, high]).map((p) => p.id);

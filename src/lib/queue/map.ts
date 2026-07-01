@@ -1,5 +1,10 @@
 // Pure mapping logic: Trello shapes -> the board's shapes. No I/O here.
-import { FLAG_LABELS, LISTS_BY_STATUS, TYPE_LABELS } from "./config";
+import {
+  DEPARTMENT_LABELS,
+  FLAG_LABELS,
+  LISTS_BY_STATUS,
+  TYPE_LABELS,
+} from "./config";
 import type { Flag, Project, ProjectType, RawCard, Status } from "./types";
 
 /** Normalize a name for comparison: trim + lowercase. */
@@ -15,6 +20,9 @@ for (const [status, lists] of Object.entries(LISTS_BY_STATUS)) {
 const FLAG_BY_NORM = new Map<string, Flag>(FLAG_LABELS.map((f) => [norm(f), f]));
 const TYPE_BY_NORM = new Map<string, ProjectType>(
   TYPE_LABELS.map((t) => [norm(t), t]),
+);
+const DEPARTMENT_BY_NORM = new Map<string, string>(
+  DEPARTMENT_LABELS.map((d) => [norm(d), d]),
 );
 
 /** Which status a Trello list maps to. Unknown lists are hidden by default. */
@@ -32,14 +40,15 @@ export function toProject(card: RawCard): Project {
     const key = norm(label.name);
     const flag = FLAG_BY_NORM.get(key);
     const t = TYPE_BY_NORM.get(key);
+    const dept = DEPARTMENT_BY_NORM.get(key);
     if (flag) {
       flags.push(flag);
     } else if (t) {
       type = type ?? t;
-    } else if (label.name.trim()) {
-      // Anything that isn't a flag or a type is a department label.
-      departments.push(label.name.trim());
+    } else if (dept) {
+      departments.push(dept);
     }
+    // Any other label (people, vendors, events, categories) is ignored.
   }
 
   return {
@@ -59,7 +68,7 @@ export function toProject(card: RawCard): Project {
  */
 export function priorityScore(p: Project): number {
   let score = 0;
-  if (p.flags.includes("High-Priority")) score += 3;
+  if (p.flags.includes("High Priority")) score += 3;
   if (p.flags.includes("Waiting for Info")) score -= 3;
   if (p.type === "Print" || p.type === "Signage") score += 0.5;
   return score;

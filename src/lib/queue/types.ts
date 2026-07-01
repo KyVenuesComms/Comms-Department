@@ -6,9 +6,9 @@ export type Status = "requested" | "in-progress" | "closed" | "hidden";
 /** Project-type labels (closed set). */
 export type ProjectType = "Print" | "Signage" | "Digital";
 
-/** Attention-flag labels (closed set). */
+/** Attention-flag labels (closed set). Names match the Trello labels exactly. */
 export type Flag =
-  | "High-Priority"
+  | "High Priority"
   | "Submitted Past Deadline"
   | "Waiting for Info";
 
