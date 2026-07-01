@@ -73,14 +73,21 @@ export function ProjectCard({
             {flags.map((f) => {
               const { Icon, bg, color, tip } = LABEL[f];
               return (
-                <span
-                  key={f}
-                  title={tip}
-                  aria-label={tip}
-                  className="flex h-[22px] w-[22px] cursor-help items-center justify-center rounded-md"
-                  style={{ background: bg, color }}
-                >
-                  <Icon size={13} aria-hidden="true" />
+                <span key={f} className="group/label relative flex">
+                  <span
+                    aria-label={tip}
+                    tabIndex={0}
+                    className="flex h-[22px] w-[22px] cursor-help items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40"
+                    style={{ background: bg, color }}
+                  >
+                    <Icon size={13} aria-hidden="true" />
+                  </span>
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 max-w-[210px] -translate-x-1/2 whitespace-normal rounded-md bg-[#1B1B19] px-2 py-1 text-center text-[11.5px] font-medium leading-snug text-white opacity-0 shadow-md transition-opacity duration-100 group-hover/label:opacity-100 group-focus-within/label:opacity-100"
+                  >
+                    {tip}
+                  </span>
                 </span>
               );
             })}
