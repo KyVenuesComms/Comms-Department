@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import type { Project, ProjectType, QueueMetrics } from "@/lib/queue/types";
 import { fmtDate } from "./format";
 import { ProjectCard } from "./ProjectCard";
-import { ProjectSearch } from "./ProjectSearch";
+import { ProjectSearch, type SearchResult } from "./ProjectSearch";
 import { LIVE_STAGES, STAGE_META } from "./stages";
 
 const UI_REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
 const INITIAL_CAP = 25;
+const SHIPPED_SHOWN = 8;
 const TYPES: (ProjectType | "all")[] = ["all", "Print", "Signage", "Digital"];
 
 const RULES = [
@@ -51,6 +52,8 @@ export function Board(props: BoardProps) {
   const [dept, setDept] = useState<"all" | "Expositions">("all");
   const [type, setType] = useState<ProjectType | "all">("all");
   const [now, setNow] = useState(() => new Date(updatedAt).getTime());
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [focusId, setFocusId] = useState<string | null>(null);
 
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), TICK_MS);
@@ -60,6 +63,22 @@ export function Board(props: BoardProps) {
       clearInterval(refresh);
     };
   }, [router]);
+
+  // When a search result is picked, reveal that card on the board and flash it.
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`card-${focusId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setFocusId(null), 2600);
+    return () => clearTimeout(t);
+  }, [focusId]);
+
+  function handleSelect(r: SearchResult) {
+    if (r.status === "closed") return; // closed jobs aren't on the live board
+    setDept("all");
+    setType("all");
+    setExpanded((e) => ({ ...e, [r.status]: true }));
+    setFocusId(r.id);
+  }
 
   const byStage = useMemo(() => {
     const pass = (p: Project) =>
@@ -73,21 +92,18 @@ export function Board(props: BoardProps) {
   }, [requested, inProgress, outForApproval, dept, type]);
 
   const statRows = [
-    { label: "Active projects", value: activeTotal, color: "#1B1B19", dot: null },
+    { label: "Active projects", value: activeTotal, color: "#1B1B19", dot: null as string | null },
     { label: "In Queue", value: requested.length, color: STAGE_META.requested.accent, dot: STAGE_META.requested.dot },
     { label: "In Progress", value: inProgress.length, color: STAGE_META["in-progress"].accent, dot: STAGE_META["in-progress"].dot },
     { label: "Out for Approval", value: outForApproval.length, color: STAGE_META["out-for-approval"].accent, dot: STAGE_META["out-for-approval"].dot },
-    { label: "Closed all-time", value: closedCount, color: "#A0A099", dot: null, muted: true },
+    { label: "Closed all-time", value: closedCount, color: "#A0A099", dot: null as string | null, muted: true },
   ];
-  const recent = metrics.recentlyCompleted.slice(0, 3);
+  const recent = metrics.recentlyCompleted.slice(0, SHIPPED_SHOWN);
 
   return (
     <div className="min-h-full" style={{ background: "#E7E7E2" }}>
       <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-8 sm:py-10">
-        <div
-          style={{ border: "1px solid #E4E4DF", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,.05),0 18px 44px rgba(0,0,0,.08)" }}
-          className="bg-white"
-        >
+        <div style={{ border: "1px solid #E4E4DF", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,.05),0 18px 44px rgba(0,0,0,.08)" }} className="bg-white">
           {/* HEADER ZONE */}
           <div className="rounded-t-[20px] px-5 pb-6 pt-6 sm:px-[30px] sm:pt-7">
             <div className="flex items-start justify-between gap-4">
@@ -124,9 +140,7 @@ export function Board(props: BoardProps) {
 
                 <div className="my-5 h-px" style={{ background: "#EDEDE8" }} />
 
-                <div className="mb-3 text-[15.5px] font-bold" style={{ color: "#1B1B19" }}>
-                  How we prioritize your work
-                </div>
+                <div className="mb-3 text-[15.5px] font-bold" style={{ color: "#1B1B19" }}>How we prioritize your work</div>
                 <ol className="flex list-decimal flex-col gap-2.5 pl-[22px]">
                   {RULES.map((r) => (
                     <li key={r.n} className="text-[14px] leading-[1.45]" style={{ color: "#4A4A44" }}>
@@ -146,23 +160,15 @@ export function Board(props: BoardProps) {
 
               {/* RIGHT: the board right now */}
               <div className="md:border-l md:pl-[34px]" style={{ borderColor: "#EDEDE8" }}>
-                <div className="text-[12.5px] font-bold uppercase tracking-[0.08em]" style={{ color: "#8A8A82" }}>
-                  The board right now
-                </div>
+                <div className="text-[12.5px] font-bold uppercase tracking-[0.08em]" style={{ color: "#8A8A82" }}>The board right now</div>
                 <div className="mt-3 flex flex-col">
                   {statRows.map((row, i) => (
-                    <div
-                      key={row.label}
-                      className="flex items-baseline justify-between py-2.5"
-                      style={i < statRows.length - 1 ? { borderBottom: "1px solid #EDEDE8" } : undefined}
-                    >
+                    <div key={row.label} className="flex items-baseline justify-between py-2.5" style={i < statRows.length - 1 ? { borderBottom: "1px solid #EDEDE8" } : undefined}>
                       <span className="flex items-center gap-2 text-[14px] font-semibold" style={{ color: row.muted ? "#8A8A82" : "#3A3A34" }}>
                         {row.dot && <span className="h-[9px] w-[9px] rounded-[3px]" style={{ background: row.dot }} />}
                         {row.label}
                       </span>
-                      <span className="text-[23px] font-extrabold tabular-nums" style={{ color: row.color }}>
-                        {row.value.toLocaleString()}
-                      </span>
+                      <span className="text-[23px] font-extrabold tabular-nums" style={{ color: row.color }}>{row.value.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -174,13 +180,15 @@ export function Board(props: BoardProps) {
                       <CircleCheck size={14} aria-hidden="true" />
                       <span className="text-[12px] font-bold uppercase tracking-[0.05em]">Recently shipped</span>
                     </div>
-                    <div className="flex flex-col gap-[7px]">
-                      {recent.map((r) => (
-                        <div key={r.id} className="flex items-baseline justify-between gap-2.5">
-                          <span className="text-[13px] font-medium leading-tight" style={{ color: "#4A4A44" }}>{r.name}</span>
-                          <span className="flex-none text-[12px]" style={{ color: "#A0A099" }}>{fmtDate(r.at)}</span>
-                        </div>
-                      ))}
+                    <div className="overflow-hidden" style={{ height: 104 }}>
+                      <div className={`flex flex-col gap-[7px] ${recent.length > 4 ? "ship-scroll" : ""}`}>
+                        {(recent.length > 4 ? [...recent, ...recent] : recent).map((r, i) => (
+                          <div key={`${r.id}-${i}`} className="flex items-baseline justify-between gap-2.5">
+                            <span className="truncate text-[13px] font-medium leading-tight" style={{ color: "#4A4A44" }}>{r.name}</span>
+                            <span className="flex-none text-[12px]" style={{ color: "#A0A099" }}>{fmtDate(r.at)}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}
@@ -191,7 +199,7 @@ export function Board(props: BoardProps) {
           {/* SEARCH ZONE (sticky) */}
           <div className="sticky top-0 z-20 bg-white px-5 py-[15px] sm:px-[30px]" style={{ borderTop: "1px solid #EDEDE8" }}>
             <div className="flex flex-wrap items-center gap-3">
-              <ProjectSearch />
+              <ProjectSearch onSelect={handleSelect} />
               <select
                 aria-label="Filter by department"
                 value={dept}
@@ -209,11 +217,7 @@ export function Board(props: BoardProps) {
                   <button
                     key={t}
                     onClick={() => setType(t)}
-                    style={
-                      active
-                        ? { background: "#1B1B19", color: "#fff", borderColor: "#1B1B19" }
-                        : { background: "#fff", color: "#4A4A44", borderColor: "#E6E6E1" }
-                    }
+                    style={active ? { background: "#1B1B19", color: "#fff", borderColor: "#1B1B19" } : { background: "#fff", color: "#4A4A44", borderColor: "#E6E6E1" }}
                     className="rounded-full border px-[15px] py-[7px] text-[14px] font-semibold"
                   >
                     {t === "all" ? "All" : t}
@@ -224,10 +228,17 @@ export function Board(props: BoardProps) {
           </div>
 
           {/* QUEUE ZONE */}
-          <div className="relative rounded-b-[20px] px-5 pb-[30px] pt-[22px] sm:px-[30px]" style={{ background: "#F7F7F4", borderTop: "1px solid #EDEDE8" }}>
+          <div className="rounded-b-[20px] px-5 pb-[30px] pt-[22px] sm:px-[30px]" style={{ background: "#F7F7F4", borderTop: "1px solid #EDEDE8" }}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {LIVE_STAGES.map((key) => (
-                <Column key={key} stageKey={key} items={byStage[key]} />
+                <Column
+                  key={key}
+                  stageKey={key}
+                  items={byStage[key]}
+                  open={!!expanded[key]}
+                  onOpen={() => setExpanded((e) => ({ ...e, [key]: true }))}
+                  focusId={focusId}
+                />
               ))}
             </div>
           </div>
@@ -240,14 +251,19 @@ export function Board(props: BoardProps) {
 function Column({
   stageKey,
   items,
+  open,
+  onOpen,
+  focusId,
 }: {
   stageKey: (typeof LIVE_STAGES)[number];
   items: Project[];
+  open: boolean;
+  onOpen: () => void;
+  focusId: string | null;
 }) {
-  const [showAll, setShowAll] = useState(false);
   const m = STAGE_META[stageKey];
   const Icon = m.Icon;
-  const visible = showAll ? items : items.slice(0, INITIAL_CAP);
+  const visible = open ? items : items.slice(0, INITIAL_CAP);
   const more = items.length - visible.length;
 
   return (
@@ -257,19 +273,17 @@ function Column({
           <Icon size={17} aria-hidden="true" />
         </span>
         <span className="flex-1 text-[16px] font-bold" style={{ color: m.accent }}>{m.label}</span>
-        <span className="rounded-full bg-white px-3 py-[3px] text-[13.5px] font-bold tabular-nums" style={{ color: m.accent }}>
-          {items.length}
-        </span>
+        <span className="rounded-full bg-white px-3 py-[3px] text-[13.5px] font-bold tabular-nums" style={{ color: m.accent }}>{items.length}</span>
       </div>
       <div className="flex flex-col gap-[9px]">
         {visible.length === 0 ? (
           <p className="px-1 py-2 text-sm" style={{ color: "#9A9A92" }}>Nothing here.</p>
         ) : (
-          visible.map((p) => <ProjectCard key={p.id} project={p} />)
+          visible.map((p) => <ProjectCard key={p.id} project={p} highlighted={p.id === focusId} />)
         )}
-        {more > 0 && !showAll && (
+        {more > 0 && !open && (
           <button
-            onClick={() => setShowAll(true)}
+            onClick={onOpen}
             style={{ borderColor: "#E4E4DE", color: "#5A5A54" }}
             className="flex items-center justify-center gap-1.5 rounded-[9px] border bg-white py-2.5 text-[13px] font-bold transition-colors hover:bg-[#F1F1EC] hover:text-[#3A3A34]"
           >
