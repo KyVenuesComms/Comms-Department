@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Flag, Project, ProjectType } from "@/lib/queue/types";
+import { fmtDate } from "./format";
 
 // Flags always carry text + icon + color (never color alone — accessibility).
 const FLAG_STYLE: Record<Flag, { cls: string; Icon: LucideIcon }> = {
@@ -32,6 +33,11 @@ const TYPE_ICON: Record<ProjectType, LucideIcon> = {
 };
 
 export function ProjectCard({ project }: { project: Project }) {
+  const dateLine =
+    project.status === "requested"
+      ? project.createdAt && `Requested ${fmtDate(project.createdAt)}`
+      : project.enteredStageAt && `As of ${fmtDate(project.enteredStageAt)}`;
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="text-sm font-medium leading-snug text-zinc-900 dark:text-zinc-100">
@@ -72,6 +78,11 @@ export function ProjectCard({ project }: { project: Project }) {
           );
         })}
       </div>
+      {dateLine && (
+        <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+          {dateLine}
+        </p>
+      )}
     </div>
   );
 }

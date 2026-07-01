@@ -32,6 +32,7 @@ export default async function Home() {
       outForApproval={snapshot.outForApproval}
       closedCount={snapshot.closed.length}
       activeTotal={snapshot.activeTotal}
+      metrics={snapshot.metrics}
       updatedAt={snapshot.updatedAt}
       stale={snapshot.stale}
     />

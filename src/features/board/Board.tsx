@@ -1,9 +1,10 @@
 "use client";
 
-import { Flag, ListChecks, RefreshCw } from "lucide-react";
+import { CircleCheck, Clock, Flag, ListChecks, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Project, ProjectType } from "@/lib/queue/types";
+import type { Project, ProjectType, QueueMetrics } from "@/lib/queue/types";
+import { fmtDate, turnaroundPhrase } from "./format";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectSearch } from "./ProjectSearch";
 import { LIVE_STAGES, STAGE_META } from "./stages";
@@ -28,6 +29,7 @@ interface BoardProps {
   outForApproval: Project[];
   closedCount: number;
   activeTotal: number;
+  metrics: QueueMetrics;
   updatedAt: string;
   stale: boolean;
 }
@@ -38,6 +40,7 @@ export function Board({
   outForApproval,
   closedCount,
   activeTotal,
+  metrics,
   updatedAt,
   stale,
 }: BoardProps) {
@@ -65,6 +68,8 @@ export function Board({
       "out-for-approval": outForApproval.filter(pass),
     };
   }, [requested, inProgress, outForApproval, dept, type]);
+
+  const deptSummary = dept !== "all" ? metrics.perDepartment[dept] : null;
 
   return (
     <div className="min-h-full bg-zinc-50 px-4 py-8 font-sans sm:px-6 dark:bg-zinc-950">
@@ -102,6 +107,43 @@ export function Board({
               : `Updated ${agoLabel(updatedAt, now)}`}
           </p>
         </header>
+
+        {/* Turnaround expectation */}
+        {metrics.turnaround && (
+          <div className="mt-5 flex items-center gap-2 rounded-xl bg-sky-50 px-4 py-2.5 text-sm text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+            <Clock size={16} className="shrink-0 text-sky-600 dark:text-sky-400" aria-hidden="true" />
+            <p>
+              New requests are currently taking{" "}
+              <strong className="font-semibold">
+                {turnaroundPhrase(metrics.turnaround.quotedDays)}
+              </strong>{" "}
+              to reach approval. Busy periods can run longer.
+            </p>
+          </div>
+        )}
+
+        {/* Recently completed */}
+        {metrics.recentlyCompleted.length > 0 && (
+          <section className="mt-4">
+            <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              <CircleCheck size={15} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              Recently completed
+            </h2>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {metrics.recentlyCompleted.map((r) => (
+                <div
+                  key={r.id}
+                  className="shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+                >
+                  <p className="max-w-[220px] truncate text-sm text-zinc-800 dark:text-zinc-200">
+                    {r.name}
+                  </p>
+                  <p className="text-xs text-zinc-400">{fmtDate(r.at)}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Prioritization explainer — collapsed by default */}
         <details className="mt-6 rounded-xl bg-sky-50 px-4 py-3 dark:bg-sky-950/40">
@@ -175,6 +217,27 @@ export function Board({
             ))}
           </div>
         </div>
+
+        {/* Per-department summary (when a department is selected) */}
+        {deptSummary && (
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              {dept}
+            </span>
+            <span className="text-zinc-600 dark:text-zinc-400">
+              {" "}
+              — <span className="tabular-nums">{deptSummary.requested}</span>{" "}
+              requested ·{" "}
+              <span className="tabular-nums">{deptSummary.inProgress}</span> in
+              progress ·{" "}
+              <span className="tabular-nums">{deptSummary.outForApproval}</span>{" "}
+              out for approval{" "}
+              <span className="text-zinc-400">
+                ({deptSummary.total} active)
+              </span>
+            </span>
+          </div>
+        )}
 
         {/* Three-stage flow columns */}
         <div className="mt-6 grid gap-5 md:grid-cols-3">
