@@ -29,6 +29,8 @@ export interface RawCard {
   /** Name of the Trello list the card currently sits in. */
   listName: string;
   labels: RawLabel[];
+  /** Link to the card in Trello. */
+  url: string;
 }
 
 /** A card after mapping — the shape the board renders. */
@@ -40,6 +42,8 @@ export interface Project {
   departments: string[];
   flags: Flag[];
   type: ProjectType | null;
+  /** Link to the card in Trello. */
+  url: string;
   /** When the card was created (≈ added to the queue). Derived from the id. */
   createdAt: string;
   /** When the card entered its current stage. Null if unknown (older than history). */

@@ -41,6 +41,7 @@ function card(over: Partial<RawCard>): RawCard {
     name: "A card",
     listName: "Work Order Queue",
     labels: [],
+    url: "https://trello.com/c/abc",
     ...over,
   };
 }
@@ -102,6 +103,9 @@ function proj(over: Partial<Project>): Project {
     departments: [],
     flags: [],
     type: null,
+    url: "https://trello.com/c/x",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    enteredStageAt: null,
     ...over,
   };
 }

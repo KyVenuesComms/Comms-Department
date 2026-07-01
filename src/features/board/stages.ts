@@ -1,55 +1,57 @@
-import { CircleCheck, Eye, Inbox, PencilRuler, type LucideIcon } from "lucide-react";
+import { CircleCheck, Eye, Inbox, Wrench, type LucideIcon } from "lucide-react";
 import type { Status } from "@/lib/queue/types";
 
 export interface StageMeta {
   label: string;
   Icon: LucideIcon;
-  /** Tailwind classes for the emphasized column/stepper header. */
-  headerBg: string;
-  headerText: string;
-  chipBg: string;
-  /** Tailwind classes for the status badge in search results. */
-  badge: string;
+  /** Strong accent — icon square fill, column title, count pill text. */
+  accent: string;
+  /** Darker text variant of the accent. */
+  darkText: string;
+  /** Soft tint — column header bar background. */
+  tint: string;
+  /** Stat-readout dot color. */
   dot: string;
+  /** Card meta date lead-in for this stage. */
+  dateVerb: string;
 }
 
 export const STAGE_META: Record<Exclude<Status, "hidden">, StageMeta> = {
   requested: {
-    label: "Requested",
+    label: "In Queue",
     Icon: Inbox,
-    headerBg: "bg-sky-50 dark:bg-sky-950/40",
-    headerText: "text-sky-800 dark:text-sky-300",
-    chipBg: "bg-sky-600",
-    badge: "bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300",
-    dot: "bg-sky-500",
+    accent: "#2563EB",
+    darkText: "#1D5FCB",
+    tint: "#EAF1FD",
+    dot: "#2563EB",
+    dateVerb: "Created",
   },
   "in-progress": {
-    label: "In progress",
-    Icon: PencilRuler,
-    headerBg: "bg-amber-50 dark:bg-amber-950/40",
-    headerText: "text-amber-800 dark:text-amber-300",
-    chipBg: "bg-amber-600",
-    badge: "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
-    dot: "bg-amber-500",
+    label: "In Progress",
+    Icon: Wrench,
+    accent: "#E07C0E",
+    darkText: "#B4670C",
+    tint: "#FBF1DC",
+    dot: "#E07C0E",
+    dateVerb: "As of",
   },
   "out-for-approval": {
-    label: "Out for approval",
+    label: "Out for Approval",
     Icon: Eye,
-    headerBg: "bg-emerald-50 dark:bg-emerald-950/40",
-    headerText: "text-emerald-800 dark:text-emerald-300",
-    chipBg: "bg-emerald-600",
-    badge:
-      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
-    dot: "bg-emerald-500",
+    accent: "#17A34A",
+    darkText: "#12833B",
+    tint: "#E7F6ED",
+    dot: "#17A34A",
+    dateVerb: "Sent on",
   },
   closed: {
     label: "Closed",
     Icon: CircleCheck,
-    headerBg: "bg-zinc-100 dark:bg-zinc-800",
-    headerText: "text-zinc-600 dark:text-zinc-300",
-    chipBg: "bg-zinc-500",
-    badge: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-    dot: "bg-zinc-400",
+    accent: "#A0A099",
+    darkText: "#8A8A82",
+    tint: "#F1F1EC",
+    dot: "#A0A099",
+    dateVerb: "Closed",
   },
 };
 

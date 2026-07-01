@@ -10,6 +10,7 @@ interface SearchResult {
   name: string;
   status: Exclude<Status, "hidden">;
   departments: string[];
+  url?: string;
 }
 
 export function ProjectSearch() {
@@ -51,8 +52,9 @@ export function ProjectSearch() {
   return (
     <div className="relative min-w-[220px] flex-1">
       <Search
-        size={16}
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+        size={17}
+        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2"
+        style={{ color: "#9A9A92" }}
         aria-hidden="true"
       />
       <input
@@ -61,57 +63,80 @@ export function ProjectSearch() {
         onChange={(e) => run(e.target.value)}
         aria-label="Find any project"
         placeholder="Find any project…"
-        className="w-full rounded-lg border border-zinc-300 bg-white py-1.5 pl-9 pr-8 text-sm text-zinc-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        style={{ background: "#F5F5F2", borderColor: "#E6E6E1", color: "#1B1B19" }}
+        className="w-full rounded-[10px] border py-2.5 pl-10 pr-9 text-[15px] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15"
       />
       {query && (
         <button
           type="button"
           onClick={() => run("")}
           aria-label="Clear search"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#9A9A92] hover:text-[#4A4A44]"
         >
-          <X size={15} aria-hidden="true" />
+          <X size={16} aria-hidden="true" />
         </button>
       )}
 
       {open && (
         <div
-          className="absolute z-20 mt-1 max-h-80 w-full overflow-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+          className="absolute z-30 mt-1.5 max-h-96 w-full overflow-auto rounded-xl border bg-white p-1 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+          style={{ borderColor: "#E6E6E1" }}
           aria-live="polite"
         >
           {loading && (
-            <p className="px-2 py-2 text-sm text-zinc-400">Searching…</p>
+            <p className="px-2.5 py-2 text-sm" style={{ color: "#9A9A92" }}>
+              Searching…
+            </p>
           )}
           {!loading &&
             results.map((r) => {
               const meta = STAGE_META[r.status];
               const StatusIcon = meta.Icon;
-              return (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  <span className="text-sm text-zinc-800 dark:text-zinc-200">
+              const inner = (
+                <>
+                  <span
+                    className="text-sm"
+                    style={{ color: "#1B1B19" }}
+                  >
                     {r.name}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     {r.departments.length > 0 && (
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs" style={{ color: "#9A9A92" }}>
                         {r.departments.join(", ")}
                       </span>
                     )}
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${meta.badge}`}
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+                      style={{ background: meta.tint, color: meta.darkText }}
                     >
                       <StatusIcon size={12} aria-hidden="true" />
                       {meta.label}
                     </span>
                   </span>
+                </>
+              );
+              return r.url ? (
+                <a
+                  key={r.id}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 no-underline hover:bg-[#F5F5F2]"
+                >
+                  {inner}
+                </a>
+              ) : (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2"
+                >
+                  {inner}
                 </div>
               );
             })}
           {!loading && searched && results.length === 0 && (
-            <p className="px-2 py-2 text-sm text-zinc-400">
+            <p className="px-2.5 py-2 text-sm" style={{ color: "#9A9A92" }}>
               No matching projects.
             </p>
           )}

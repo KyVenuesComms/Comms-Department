@@ -27,6 +27,7 @@ interface TrelloCard {
   name: string;
   idList: string;
   labels?: { name: string }[];
+  url: string;
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -48,7 +49,7 @@ export async function fetchBoardCards(): Promise<RawCard[]> {
   const [lists, cards] = await Promise.all([
     get<TrelloList[]>(`/boards/${boardId}/lists?fields=name&filter=open`),
     get<TrelloCard[]>(
-      `/boards/${boardId}/cards?fields=name,idList,labels&filter=visible`,
+      `/boards/${boardId}/cards?fields=name,idList,labels,url&filter=visible`,
     ),
   ]);
   const nameByListId = new Map(lists.map((l) => [l.id, l.name]));
@@ -57,6 +58,7 @@ export async function fetchBoardCards(): Promise<RawCard[]> {
     name: c.name,
     listName: nameByListId.get(c.idList) ?? "",
     labels: (c.labels ?? []).map((l) => ({ name: l.name ?? "" })),
+    url: c.url,
   }));
 }
 

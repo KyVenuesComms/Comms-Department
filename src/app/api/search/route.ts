@@ -29,6 +29,7 @@ export async function GET(request: Request) {
         name: p.name,
         status: p.status as Status,
         departments: p.departments,
+        url: p.url,
       }));
     return Response.json({ results });
   } catch {

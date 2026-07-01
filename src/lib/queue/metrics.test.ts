@@ -92,6 +92,7 @@ function proj(over: Partial<Project>): Project {
     departments: [],
     flags: [],
     type: null,
+    url: "https://trello.com/c/x",
     createdAt: new Date(NOW).toISOString(),
     enteredStageAt: null,
     ...over,

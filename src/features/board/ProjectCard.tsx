@@ -1,88 +1,96 @@
-import {
-  CalendarClock,
-  CircleHelp,
-  Flame,
-  Monitor,
-  Printer,
-  Signpost,
-  type LucideIcon,
-} from "lucide-react";
-import type { Flag, Project, ProjectType } from "@/lib/queue/types";
+import { CircleAlert, Flag, Flame, Tag, type LucideIcon } from "lucide-react";
+import type { Flag as FlagName, Project } from "@/lib/queue/types";
 import { fmtDate } from "./format";
+import { STAGE_META } from "./stages";
 
-// Flags always carry text + icon + color (never color alone — accessibility).
-const FLAG_STYLE: Record<Flag, { cls: string; Icon: LucideIcon }> = {
+// Trello labels shown as hover icons (icon + color + accessible label).
+const LABEL: Record<
+  FlagName,
+  { Icon: LucideIcon; bg: string; color: string; tip: string }
+> = {
   "High Priority": {
-    cls: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
     Icon: Flame,
-  },
-  "Submitted Past Deadline": {
-    cls: "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
-    Icon: CalendarClock,
+    bg: "#FBEAEA",
+    color: "#DB3B3B",
+    tip: "High Priority",
   },
   "Waiting for Info": {
-    cls: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
-    Icon: CircleHelp,
+    Icon: CircleAlert,
+    bg: "#FBF1DC",
+    color: "#B4670C",
+    tip: "Missing info: on hold until details arrive",
+  },
+  "Submitted Past Deadline": {
+    Icon: Flag,
+    bg: "#FDE8D6",
+    color: "#C2410C",
+    tip: "Submitted after the deadline",
   },
 };
 
-const TYPE_ICON: Record<ProjectType, LucideIcon> = {
-  Print: Printer,
-  Signage: Signpost,
-  Digital: Monitor,
-};
+// Fixed display order for the label cluster.
+const LABEL_ORDER: FlagName[] = [
+  "High Priority",
+  "Waiting for Info",
+  "Submitted Past Deadline",
+];
 
 export function ProjectCard({ project }: { project: Project }) {
-  const dateLine =
+  const meta = STAGE_META[project.status as keyof typeof STAGE_META];
+  const dateVal =
     project.status === "requested"
-      ? project.createdAt && `Requested ${fmtDate(project.createdAt)}`
-      : project.enteredStageAt && `As of ${fmtDate(project.enteredStageAt)}`;
+      ? project.createdAt
+      : (project.enteredStageAt ?? project.createdAt);
+  const dateStr = dateVal ? `${meta.dateVerb} ${fmtDate(dateVal)}` : "";
+  const flags = LABEL_ORDER.filter((f) => project.flags.includes(f));
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-sm font-medium leading-snug text-zinc-900 dark:text-zinc-100">
-        {project.name}
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {project.departments.map((d) => (
-          <span
-            key={d}
-            className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-          >
-            <span
-              className="h-2 w-2 rounded-full bg-violet-500"
-              aria-hidden="true"
-            />
-            {d}
+    <a
+      href={project.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ borderColor: "#E9E9E4", boxShadow: "0 1px 2px rgba(0,0,0,.03)" }}
+      className="flex flex-col gap-2 rounded-xl border bg-white px-3.5 py-3 no-underline transition-all duration-[120ms] hover:-translate-y-px hover:border-[#C6C6BE] hover:shadow-[0_3px_10px_rgba(0,0,0,0.09)]"
+    >
+      <div className="flex items-start gap-2.5">
+        <span
+          className="flex-1 text-[14.5px] font-semibold leading-[1.32]"
+          style={{ color: "#1B1B19" }}
+        >
+          {project.name}
+        </span>
+        {flags.length > 0 && (
+          <span className="mt-px flex flex-none items-center gap-1.5">
+            {flags.map((f) => {
+              const { Icon, bg, color, tip } = LABEL[f];
+              return (
+                <span
+                  key={f}
+                  title={tip}
+                  aria-label={tip}
+                  className="flex h-[22px] w-[22px] cursor-help items-center justify-center rounded-md"
+                  style={{ background: bg, color }}
+                >
+                  <Icon size={13} aria-hidden="true" />
+                </span>
+              );
+            })}
           </span>
-        ))}
+        )}
+      </div>
+      <div
+        className="flex items-center gap-1.5 text-[12.5px] font-medium"
+        style={{ color: "#9A9A92" }}
+      >
         {project.type && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            {(() => {
-              const Icon = TYPE_ICON[project.type];
-              return <Icon size={12} aria-hidden="true" />;
-            })()}
+          <span className="inline-flex items-center gap-1">
+            <Tag size={12} aria-hidden="true" />
             {project.type}
           </span>
         )}
-        {project.flags.map((f) => {
-          const { cls, Icon } = FLAG_STYLE[f];
-          return (
-            <span
-              key={f}
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
-            >
-              <Icon size={12} aria-hidden="true" />
-              {f}
-            </span>
-          );
-        })}
+        {project.type && dateStr && <span style={{ color: "#D4D4CC" }}>·</span>}
+        {dateStr && <span>{dateStr}</span>}
       </div>
-      {dateLine && (
-        <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          {dateLine}
-        </p>
-      )}
-    </div>
+    </a>
   );
 }

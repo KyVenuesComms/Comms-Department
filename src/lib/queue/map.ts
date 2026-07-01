@@ -64,6 +64,7 @@ export function toProject(card: RawCard): Project {
     departments,
     flags,
     type,
+    url: card.url,
     createdAt: cardCreatedAt(card.id),
     enteredStageAt: null,
   };
