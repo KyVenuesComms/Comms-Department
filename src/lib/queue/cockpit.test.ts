@@ -179,6 +179,33 @@ describe("computeCockpit", () => {
     expect(c.agingBuckets[0]).toEqual({ stage: "In Queue", buckets: [1, 1, 1, 1] });
   });
 
+  it("lists work due in the next 10 days, soonest first", () => {
+    const active = [
+      proj({ name: "later", dueAt: ahead(9) }),
+      proj({ name: "soon", dueAt: ahead(2) }),
+      proj({ name: "too-far", dueAt: ahead(15) }),
+      proj({ name: "done", dueAt: ahead(3), dueComplete: true }),
+      proj({ name: "past", dueAt: ago(1) }), // overdue, not "due soon"
+    ];
+    const c = computeCockpit(active, [], [], [], [], NOW);
+    expect(c.dueSoon.map((d) => d.name)).toEqual(["soon", "later"]);
+    expect(c.dueSoon[0].dueInDays).toBe(2);
+  });
+
+  it("surfaces the bottleneck as an alert", () => {
+    const ofa = [proj({ status: "out-for-approval", enteredStageAt: ago(20) })];
+    const c = computeCockpit([], [], ofa, [], [], NOW);
+    expect(c.alerts.some((a) => a.startsWith("Bottleneck: Out for Approval"))).toBe(true);
+  });
+
+  it("exposes intake per week alongside shipped per week", () => {
+    const req = [proj({ createdAt: ago(2) }), proj({ createdAt: ago(9) })];
+    const c = computeCockpit(req, [], [], [], [], NOW);
+    expect(c.intakePerWeek).toHaveLength(6);
+    expect(c.intakePerWeek[5]).toBe(1); // newest week
+    expect(c.intakePerWeek[4]).toBe(1); // week before
+  });
+
   it("raises threshold alerts against targets", () => {
     const overdueLots = Array.from({ length: 25 }, () => proj({ dueAt: ago(3) }));
     const c = computeCockpit(overdueLots, [], [], [], [], NOW, 35);

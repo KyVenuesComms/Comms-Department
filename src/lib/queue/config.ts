@@ -63,8 +63,6 @@ export const TARGETS = {
   turnaroundDays: 28,
   /** Overdue active projects should stay under this. */
   overdue: 20,
-  /** Waiting-for-info should stay under this. */
-  waitingForInfo: 30,
   /** Alert when the backlog is growing faster than this per week (avg). */
   weeklyNetGrowth: 5,
 };

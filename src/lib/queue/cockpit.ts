@@ -290,7 +290,22 @@ export function computeCockpit(
       };
     })
     .sort((a, b) => b.days - a.days)
-    .slice(0, 5);
+    .slice(0, 50);
+
+  // Active work due in the next 10 days — the "don't get surprised" list.
+  const dueSoon = active
+    .filter((p) => {
+      const d = ms(p.dueAt);
+      return d !== null && !p.dueComplete && d >= nowMs && d < nowMs + 10 * DAY;
+    })
+    .sort((a, b) => new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime())
+    .slice(0, 50)
+    .map((p) => ({
+      name: p.name,
+      department: p.departments[0] ?? "Unassigned",
+      stage: STAGE_LABEL[p.status] ?? p.status,
+      dueInDays: Math.max(0, Math.ceil((new Date(p.dueAt!).getTime() - nowMs) / DAY)),
+    }));
 
   // Highest-leverage move (first applicable, in priority order).
   const net = intakeWeek - shippedWeek;
@@ -313,8 +328,8 @@ export function computeCockpit(
   if (overdue > TARGETS.overdue) {
     alerts.push(`Overdue is ${overdue} — target is under ${TARGETS.overdue}.`);
   }
-  if (waitingForInfo > TARGETS.waitingForInfo) {
-    alerts.push(`${waitingForInfo} projects waiting on info — target is under ${TARGETS.waitingForInfo}.`);
+  if (bottleneck) {
+    alerts.push(`Bottleneck: ${bottleneck.stage} — ${bottleneck.reason}.`);
   }
   if (turnaroundQuotedDays !== null && turnaroundQuotedDays > TARGETS.turnaroundDays) {
     alerts.push(`Turnaround is ~${turnaroundQuotedDays} days — target is ${TARGETS.turnaroundDays}.`);
@@ -331,6 +346,8 @@ export function computeCockpit(
   return {
     netFlow: { intakeWeek, shippedWeek, net, prevIntakeWeek, prevShippedWeek },
     agedItems,
+    dueSoon,
+    intakePerWeek,
     cycleTime,
     rework,
     missingInfoByDept,
