@@ -72,6 +72,39 @@ describe("computeCockpit", () => {
     expect(c.bottleneck?.stage).toBe("Out for Approval");
   });
 
+  it("computes prior-week intake and shipped for vs-last-week deltas", () => {
+    const req = [
+      proj({ createdAt: ago(1) }), // this week
+      proj({ createdAt: ago(9) }), // last week
+      proj({ createdAt: ago(10) }), // last week
+      proj({ createdAt: ago(20) }), // older
+    ];
+    const moves = [
+      closedMove("a", 2), // this week
+      closedMove("b", 8), // last week
+      closedMove("c", 12), // last week
+      closedMove("c", 12.5), // same card again → deduped
+      closedMove("d", 25), // older
+    ];
+    const c = computeCockpit(req, [], [], [], moves, NOW);
+    expect(c.netFlow.intakeWeek).toBe(1);
+    expect(c.netFlow.prevIntakeWeek).toBe(2);
+    expect(c.netFlow.shippedWeek).toBe(1);
+    expect(c.netFlow.prevShippedWeek).toBe(2);
+  });
+
+  it("lists the oldest active items by time in current stage", () => {
+    const req = [
+      proj({ name: "old", enteredStageAt: ago(40), departments: ["Finance"] }),
+      proj({ name: "mid", enteredStageAt: ago(10) }),
+      proj({ name: "new", enteredStageAt: ago(1) }),
+      proj({ name: "no-history", enteredStageAt: null, createdAt: ago(25) }),
+    ];
+    const c = computeCockpit(req, [], [], [], [], NOW);
+    expect(c.agedItems.map((i) => i.name)).toEqual(["old", "no-history", "mid", "new"]);
+    expect(c.agedItems[0]).toMatchObject({ department: "Finance", stage: "In Queue", days: 40 });
+  });
+
   it("picks 'nudge requesters' when waiting-for-info is high", () => {
     const active = Array.from({ length: 5 }, () => proj({ flags: ["Waiting for Info"] }));
     const c = computeCockpit(active, [], [], [], [], NOW);

@@ -23,13 +23,19 @@ export function computeCockpit(
 ): CockpitData {
   const active = [...requested, ...inProgress, ...outForApproval];
 
-  // Net flow this week: created vs. shipped (Grove's leading indicator).
-  const intakeWeek = [...active, ...closed].filter(
-    (p) => nowMs - new Date(p.createdAt).getTime() < WEEK,
-  ).length;
+  // Net flow: created vs. shipped, this week and the week before (for deltas).
+  const createdAge = (p: Project) => nowMs - new Date(p.createdAt).getTime();
+  const all = [...active, ...closed];
+  const intakeWeek = all.filter((p) => createdAge(p) < WEEK).length;
+  const prevIntakeWeek = all.filter((p) => {
+    const a = createdAge(p);
+    return a >= WEEK && a < 2 * WEEK;
+  }).length;
   const shippedSeen = new Set<string>();
+  const prevShippedSeen = new Set<string>();
   const shippedPerWeek = new Array(SHIPPED_WEEKS).fill(0);
   let shippedWeek = 0;
+  let prevShippedWeek = 0;
   for (const m of moves) {
     if (statusForList(m.toList) !== "closed") continue;
     const age = nowMs - new Date(m.at).getTime();
@@ -37,6 +43,9 @@ export function computeCockpit(
     if (age < WEEK && !shippedSeen.has(m.cardId)) {
       shippedSeen.add(m.cardId);
       shippedWeek++;
+    } else if (age >= WEEK && age < 2 * WEEK && !prevShippedSeen.has(m.cardId)) {
+      prevShippedSeen.add(m.cardId);
+      prevShippedWeek++;
     }
     const wk = Math.floor(age / WEEK);
     if (wk < SHIPPED_WEEKS) shippedPerWeek[wk]++;
@@ -99,6 +108,25 @@ export function computeCockpit(
       ? { stage: stages[0].stage, reason: `${stages[0].n} sitting over 2 weeks` }
       : null;
 
+  // Oldest active work by time in its current stage — the attention list.
+  const STAGE_LABEL: Record<string, string> = {
+    requested: "In Queue",
+    "in-progress": "In Progress",
+    "out-for-approval": "Out for Approval",
+  };
+  const agedItems = active
+    .map((p) => {
+      const entered = ms(p.enteredStageAt) ?? new Date(p.createdAt).getTime();
+      return {
+        name: p.name,
+        department: p.departments[0] ?? "Unassigned",
+        stage: STAGE_LABEL[p.status] ?? p.status,
+        days: Math.floor((nowMs - entered) / DAY),
+      };
+    })
+    .sort((a, b) => b.days - a.days)
+    .slice(0, 5);
+
   // Highest-leverage move (first applicable, in priority order).
   const net = intakeWeek - shippedWeek;
   const topDept = byDepartment[0];
@@ -116,7 +144,8 @@ export function computeCockpit(
   }
 
   return {
-    netFlow: { intakeWeek, shippedWeek, net },
+    netFlow: { intakeWeek, shippedWeek, net, prevIntakeWeek, prevShippedWeek },
+    agedItems,
     overdue,
     dueThisWeek,
     waitingForInfo,

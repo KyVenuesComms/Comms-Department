@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Lock, RefreshCw, Zap } from "lucide-react";
+import { AlertTriangle, Download, Hourglass, Lock, RefreshCw, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CockpitData, QueueMetrics } from "@/lib/queue/types";
@@ -18,6 +18,21 @@ function agoLabel(iso: string, now: number): string {
 const CARD = "rounded-2xl border bg-white p-4 sm:p-5";
 const CARD_STYLE = { borderColor: "#E4E4DF" } as const;
 const K = "text-[11px] font-bold uppercase tracking-[0.09em]";
+
+/** Shopify-style vs-last-week delta chip. */
+function Delta({ now, prev }: { now: number; prev: number }) {
+  if (prev === 0) return null;
+  const pct = Math.round(((now - prev) / prev) * 100);
+  if (pct === 0) return <span className="text-[11.5px] font-semibold" style={{ color: "#A0A099" }}>= last wk</span>;
+  const up = pct > 0;
+  const Icon = up ? TrendingUp : TrendingDown;
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold" style={{ color: up ? "#B4670C" : "#12833B" }}>
+      <Icon size={12} aria-hidden="true" />
+      {up ? "+" : ""}{pct}% vs last wk ({prev})
+    </span>
+  );
+}
 
 function Bar({ label, value, max, sub, color }: { label: string; value: number; max: number; sub?: string; color: string }) {
   return (
@@ -71,10 +86,19 @@ export function Cockpit({
             <div className={K} style={{ color: "#2563EB" }}>Creative operations · leadership</div>
             <h1 className="mt-1 text-[26px] font-extrabold tracking-[-0.015em]" style={{ color: "#131311" }}>The cockpit</h1>
           </div>
-          <div className="flex items-center gap-1.5 text-[12px]" style={{ color: "#A0A099" }}>
-            <Lock size={12} aria-hidden="true" /> private ·
-            <RefreshCw size={12} aria-hidden="true" />
-            {stale ? "last good data" : `updated ${agoLabel(updatedAt, now)}`}
+          <div className="flex items-center gap-3">
+            <a
+              href="/api/manager/export"
+              className="inline-flex items-center gap-1.5 rounded-[9px] border bg-white px-3 py-1.5 text-[12.5px] font-bold no-underline transition-colors hover:bg-[#F1F1EC]"
+              style={{ borderColor: "#E4E4DE", color: "#3A3A34" }}
+            >
+              <Download size={13} aria-hidden="true" /> Export CSV
+            </a>
+            <div className="flex items-center gap-1.5 text-[12px]" style={{ color: "#A0A099" }}>
+              <Lock size={12} aria-hidden="true" /> private ·
+              <RefreshCw size={12} aria-hidden="true" />
+              {stale ? "last good data" : `updated ${agoLabel(updatedAt, now)}`}
+            </div>
           </div>
         </div>
 
@@ -96,13 +120,23 @@ export function Cockpit({
                 <span className="text-[14px]" style={{ color: "#6A6A63" }}>active projects</span>
               </div>
             </div>
-            <div className="text-[13.5px]" style={{ color: "#3A3A34" }}>
-              This week:{" "}
-              <b style={{ color: "#1D5FCB" }}>+{intakeWeek} in</b> ·{" "}
-              <b style={{ color: "#12833B" }}>−{shippedWeek} out</b> ·{" "}
-              <b style={{ color: net > 0 ? "#B4670C" : "#12833B" }}>
-                net {net >= 0 ? "+" : ""}{net} {net > 0 ? "· backlog growing" : "· holding/shrinking"}
-              </b>
+            <div className="text-right text-[13.5px]" style={{ color: "#3A3A34" }}>
+              <div>
+                This week:{" "}
+                <b style={{ color: "#1D5FCB" }}>+{intakeWeek} in</b> ·{" "}
+                <b style={{ color: "#12833B" }}>−{shippedWeek} out</b> ·{" "}
+                <b style={{ color: net > 0 ? "#B4670C" : "#12833B" }}>
+                  net {net >= 0 ? "+" : ""}{net} {net > 0 ? "· backlog growing" : "· holding/shrinking"}
+                </b>
+              </div>
+              <div className="mt-1 flex justify-end gap-3">
+                <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: "#8A8A82" }}>
+                  in: <Delta now={intakeWeek} prev={cockpit.netFlow.prevIntakeWeek} />
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: "#8A8A82" }}>
+                  out: <Delta now={shippedWeek} prev={cockpit.netFlow.prevShippedWeek} />
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -147,6 +181,29 @@ export function Cockpit({
             </div>
           </div>
         </div>
+
+        {/* needs attention — longest in current stage */}
+        {cockpit.agedItems.length > 0 && (
+          <div className={CARD} style={CARD_STYLE}>
+            <p className={`${K} mb-3 flex items-center gap-1.5`} style={{ color: "#8A8A82" }}>
+              <Hourglass size={13} aria-hidden="true" /> Needs attention — longest in current stage
+            </p>
+            <div className="flex flex-col">
+              {cockpit.agedItems.map((it, i) => (
+                <div
+                  key={`${it.name}-${i}`}
+                  className="flex items-center gap-3 py-2 text-[13px]"
+                  style={i > 0 ? { borderTop: "1px solid #EDEDE8" } : undefined}
+                >
+                  <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
+                  <span className="hidden w-40 truncate text-[12px] sm:block" style={{ color: "#8A8A82" }}>{it.department}</span>
+                  <span className="w-28 text-[12px]" style={{ color: "#6A6A63" }}>{it.stage}</span>
+                  <span className="w-16 text-right font-bold tabular-nums" style={{ color: it.days > 30 ? "#DB3B3B" : "#B4670C" }}>{it.days}d</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* by department + work mix */}
         <div className="grid gap-3 md:grid-cols-[1.6fr_1fr]">

@@ -93,8 +93,17 @@ export interface WorkloadContext {
 
 /** Leadership cockpit numbers — computed once per refresh, read by /manager. */
 export interface CockpitData {
-  /** Intake vs output this week — the "are we keeping up?" signal. */
-  netFlow: { intakeWeek: number; shippedWeek: number; net: number };
+  /** Intake vs output this week — the "are we keeping up?" signal.
+   *  prev* = the week before, for Shopify-style vs-last-week deltas. */
+  netFlow: {
+    intakeWeek: number;
+    shippedWeek: number;
+    net: number;
+    prevIntakeWeek: number;
+    prevShippedWeek: number;
+  };
+  /** Oldest active work (by time in current stage) — the attention list. */
+  agedItems: { name: string; department: string; stage: string; days: number }[];
   overdue: number;
   dueThisWeek: number;
   waitingForInfo: number;
