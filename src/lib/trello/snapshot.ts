@@ -4,6 +4,7 @@
 import "server-only";
 import { REFRESH_MS } from "../queue/config";
 import { sortProjects, toProject } from "../queue/map";
+import { computeCockpit } from "../queue/cockpit";
 import { perDepartment, recentlyCompleted, stageEntryDates, turnaround } from "../queue/metrics";
 import { workloadContext } from "../queue/workload";
 import type { QueueMetrics, TrendPoint, WorkloadContext } from "../queue/types";
@@ -50,6 +51,11 @@ async function build(): Promise<QueueSnapshot> {
     recentlyCompleted: recentlyCompleted(moves, nowMs),
     perDepartment: perDepartment(requested, inProgress, outForApproval),
   };
+  const cockpit = computeCockpit(requested, inProgress, outForApproval, closed, moves, nowMs);
+  const unassigned = cockpit.byDepartment.find((d) => d.name === "Unassigned")?.active ?? 0;
+  console.info(
+    `[cockpit] net +${cockpit.netFlow.intakeWeek}/-${cockpit.netFlow.shippedWeek} (${cockpit.netFlow.net >= 0 ? "+" : ""}${cockpit.netFlow.net}) · overdue ${cockpit.overdue} · waiting ${cockpit.waitingForInfo} · depts ${cockpit.byDepartment.filter((d) => d.name !== "Unassigned").slice(0, 3).map((d) => `${d.name}:${d.active}`).join(", ")} · unassigned ${unassigned} · bottleneck ${cockpit.bottleneck?.stage ?? "none"} · lever: ${cockpit.leverage}`,
+  );
 
   return {
     requested,
@@ -58,6 +64,7 @@ async function build(): Promise<QueueSnapshot> {
     closed,
     activeTotal: requested.length + inProgress.length + outForApproval.length,
     metrics,
+    cockpit,
     updatedAt: new Date().toISOString(),
     stale: false,
   };

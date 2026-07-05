@@ -31,6 +31,13 @@ export interface RawCard {
   labels: RawLabel[];
   /** Link to the card in Trello. */
   url: string;
+  /** Raw card description (parsed for department, then discarded). */
+  desc?: string;
+  /** Trello due date (ISO) and whether it's marked complete. */
+  due?: string | null;
+  dueComplete?: boolean;
+  /** Primary assigned team member's name, if any. */
+  assignee?: string | null;
 }
 
 /** A card after mapping — the shape the board renders. */
@@ -48,6 +55,11 @@ export interface Project {
   createdAt: string;
   /** When the card entered its current stage. Null if unknown (older than history). */
   enteredStageAt: string | null;
+  /** Trello due date (ISO), and whether it's checked off. */
+  dueAt: string | null;
+  dueComplete: boolean;
+  /** Assigned team member's name, or null. */
+  assignee: string | null;
 }
 
 /** A single list-move from Trello's action history. */
@@ -77,6 +89,24 @@ export interface WorkloadContext {
   pct: number;
   /** How many prior days the comparison is based on. */
   sampleDays: number;
+}
+
+/** Leadership cockpit numbers — computed once per refresh, read by /manager. */
+export interface CockpitData {
+  /** Intake vs output this week — the "are we keeping up?" signal. */
+  netFlow: { intakeWeek: number; shippedWeek: number; net: number };
+  overdue: number;
+  dueThisWeek: number;
+  waitingForInfo: number;
+  byDepartment: { name: string; active: number; newThisWeek: number }[];
+  byAssignee: { name: string; active: number }[];
+  /** Closed per week, oldest → newest (last 6 weeks). */
+  shippedPerWeek: number[];
+  workMix: { Print: number; Signage: number; Digital: number };
+  /** Grove's limiting step: the stage with the most aged work, or null. */
+  bottleneck: { stage: string; reason: string } | null;
+  /** The single highest-leverage move right now, in plain English. */
+  leverage: string;
 }
 
 /** Computed, board-wide numbers. Built once per refresh, never in the UI. */

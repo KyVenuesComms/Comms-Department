@@ -1,10 +1,6 @@
 // Pure mapping logic: Trello shapes -> the board's shapes. No I/O here.
-import {
-  DEPARTMENT_LABELS,
-  FLAG_LABELS,
-  LISTS_BY_STATUS,
-  TYPE_LABELS,
-} from "./config";
+import { FLAG_LABELS, LISTS_BY_STATUS, TYPE_LABELS } from "./config";
+import { parseDepartment } from "./departments";
 import type { Flag, Project, ProjectType, RawCard, Status } from "./types";
 
 /** Normalize a name for comparison: trim + lowercase. */
@@ -21,9 +17,6 @@ const FLAG_BY_NORM = new Map<string, Flag>(FLAG_LABELS.map((f) => [norm(f), f]))
 const TYPE_BY_NORM = new Map<string, ProjectType>(
   TYPE_LABELS.map((t) => [norm(t), t]),
 );
-const DEPARTMENT_BY_NORM = new Map<string, string>(
-  DEPARTMENT_LABELS.map((d) => [norm(d), d]),
-);
 
 /** Which status a Trello list maps to. Unknown lists are hidden by default. */
 export function statusForList(listName: string): Status {
@@ -39,34 +32,32 @@ export function cardCreatedAt(id: string): string {
 /** Turn a raw Trello card into a mapped Project. */
 export function toProject(card: RawCard): Project {
   const flags: Flag[] = [];
-  const departments: string[] = [];
   let type: ProjectType | null = null;
 
+  // Labels carry flags + type. Department now comes from the description.
   for (const label of card.labels) {
     const key = norm(label.name);
     const flag = FLAG_BY_NORM.get(key);
     const t = TYPE_BY_NORM.get(key);
-    const dept = DEPARTMENT_BY_NORM.get(key);
-    if (flag) {
-      flags.push(flag);
-    } else if (t) {
-      type = type ?? t;
-    } else if (dept) {
-      departments.push(dept);
-    }
-    // Any other label (people, vendors, events, categories) is ignored.
+    if (flag) flags.push(flag);
+    else if (t) type = type ?? t;
   }
+
+  const dept = parseDepartment(card.desc);
 
   return {
     id: card.id,
     name: card.name,
     status: statusForList(card.listName),
-    departments,
+    departments: dept ? [dept] : [],
     flags,
     type,
     url: card.url,
     createdAt: cardCreatedAt(card.id),
     enteredStageAt: null,
+    dueAt: card.due ?? null,
+    dueComplete: card.dueComplete ?? false,
+    assignee: card.assignee ?? null,
   };
 }
 

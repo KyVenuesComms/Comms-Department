@@ -47,42 +47,38 @@ function card(over: Partial<RawCard>): RawCard {
 }
 
 describe("toProject", () => {
-  it("sorts labels into department / flag / type", () => {
+  it("reads flag + type from labels and department from the description", () => {
     const p = toProject(
       card({
-        labels: [
-          { name: "Expositions" },
-          { name: "High Priority" },
-          { name: "Print" },
-        ],
+        labels: [{ name: "High Priority" }, { name: "Print" }],
+        desc: "Department:\n\nExpositions Division\n",
       }),
     );
-    expect(p.departments).toEqual(["Expositions"]);
+    expect(p.departments).toEqual(["Expositions Division"]);
     expect(p.flags).toEqual(["High Priority"]);
     expect(p.type).toBe("Print");
     expect(p.status).toBe("requested");
   });
 
-  it("leaves department empty when no department label is present", () => {
+  it("leaves department empty when the description has none", () => {
     const p = toProject(card({ labels: [{ name: "Digital" }] }));
     expect(p.departments).toEqual([]);
     expect(p.type).toBe("Digital");
   });
 
-  it("keeps multiple flags and ignores non-department labels", () => {
+  it("keeps multiple flags and never treats a label as a department", () => {
     const p = toProject(
       card({
         labels: [
           { name: "Waiting for Info" },
           { name: "Submitted Past Deadline" },
-          { name: "Expositions" },
-          { name: "Red7e" }, // vendor — not a known department, ignored
-          { name: "Bre" }, // person — ignored
+          { name: "Expositions" }, // a label, NOT a department source anymore
+          { name: "Red7e" },
         ],
       }),
     );
     expect(p.flags).toEqual(["Waiting for Info", "Submitted Past Deadline"]);
-    expect(p.departments).toEqual(["Expositions"]);
+    expect(p.departments).toEqual([]);
     expect(p.type).toBeNull();
   });
 
@@ -106,6 +102,9 @@ function proj(over: Partial<Project>): Project {
     url: "https://trello.com/c/x",
     createdAt: "2026-01-01T00:00:00.000Z",
     enteredStageAt: null,
+    dueAt: null,
+    dueComplete: false,
+    assignee: null,
     ...over,
   };
 }

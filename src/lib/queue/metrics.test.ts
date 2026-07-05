@@ -95,6 +95,9 @@ function proj(over: Partial<Project>): Project {
     url: "https://trello.com/c/x",
     createdAt: new Date(NOW).toISOString(),
     enteredStageAt: null,
+    dueAt: null,
+    dueComplete: false,
+    assignee: null,
     ...over,
   };
 }

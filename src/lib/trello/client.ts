@@ -22,12 +22,20 @@ interface TrelloList {
   id: string;
   name: string;
 }
+interface TrelloMember {
+  id: string;
+  fullName: string;
+}
 interface TrelloCard {
   id: string;
   name: string;
   idList: string;
   labels?: { name: string }[];
   url: string;
+  desc?: string;
+  due?: string | null;
+  dueComplete?: boolean;
+  idMembers?: string[];
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -46,19 +54,27 @@ async function get<T>(path: string): Promise<T> {
 /** Fetch every visible card on the board, each tagged with its list name. */
 export async function fetchBoardCards(): Promise<RawCard[]> {
   const { boardId } = creds();
-  const [lists, cards] = await Promise.all([
+  const [lists, members, cards] = await Promise.all([
     get<TrelloList[]>(`/boards/${boardId}/lists?fields=name&filter=open`),
+    get<TrelloMember[]>(`/boards/${boardId}/members?fields=fullName`),
     get<TrelloCard[]>(
-      `/boards/${boardId}/cards?fields=name,idList,labels,url&filter=visible`,
+      `/boards/${boardId}/cards?fields=name,idList,labels,url,desc,due,dueComplete,idMembers&filter=visible`,
     ),
   ]);
   const nameByListId = new Map(lists.map((l) => [l.id, l.name]));
+  const nameByMemberId = new Map(members.map((m) => [m.id, m.fullName]));
   return cards.map((c) => ({
     id: c.id,
     name: c.name,
     listName: nameByListId.get(c.idList) ?? "",
     labels: (c.labels ?? []).map((l) => ({ name: l.name ?? "" })),
     url: c.url,
+    desc: c.desc,
+    due: c.due ?? null,
+    dueComplete: c.dueComplete ?? false,
+    assignee: c.idMembers?.length
+      ? (nameByMemberId.get(c.idMembers[0]) ?? null)
+      : null,
   }));
 }
 

@@ -1,4 +1,4 @@
-import type { Project, QueueMetrics } from "../queue/types";
+import type { CockpitData, Project, QueueMetrics } from "../queue/types";
 
 export interface QueueSnapshot {
   requested: Project[];
@@ -10,6 +10,8 @@ export interface QueueSnapshot {
   activeTotal: number;
   /** Computed board-wide numbers (turnaround, recently completed, per-dept). */
   metrics: QueueMetrics;
+  /** Leadership cockpit aggregates (read by /manager). */
+  cockpit: CockpitData;
   /** When this data was read from Trello (ISO string). */
   updatedAt: string;
   /** True when Trello was unreachable and we're serving the last good copy. */

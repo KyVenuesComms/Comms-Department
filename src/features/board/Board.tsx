@@ -4,6 +4,7 @@ import { ChevronDown, CircleCheck, Clock, Flag, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Project, ProjectType, QueueMetrics, WorkloadContext } from "@/lib/queue/types";
+import { DEPARTMENTS } from "@/lib/queue/departments";
 import { fmtDate } from "./format";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectSearch, type SearchResult } from "./ProjectSearch";
@@ -50,7 +51,7 @@ interface BoardProps {
 export function Board(props: BoardProps) {
   const { requested, inProgress, outForApproval, closedCount, activeTotal, metrics, workload, updatedAt, stale } = props;
   const router = useRouter();
-  const [dept, setDept] = useState<"all" | "Expositions">("all");
+  const [dept, setDept] = useState<string>("all");
   const [type, setType] = useState<ProjectType | "all">("all");
   const [now, setNow] = useState(() => new Date(updatedAt).getTime());
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -215,12 +216,16 @@ export function Board(props: BoardProps) {
               <select
                 aria-label="Filter by department"
                 value={dept}
-                onChange={(e) => setDept(e.target.value as "all" | "Expositions")}
+                onChange={(e) => setDept(e.target.value)}
                 style={{ background: "#fff", borderColor: "#E6E6E1", color: "#3A3A34" }}
                 className="rounded-[10px] border px-3.5 py-2.5 text-[15px] font-semibold"
               >
                 <option value="all">All departments</option>
-                <option value="Expositions">Expositions</option>
+                {DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
               <span className="text-[14px] font-medium" style={{ color: "#9A9A92" }}>type</span>
               {TYPES.map((t) => {
