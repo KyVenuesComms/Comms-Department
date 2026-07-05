@@ -54,3 +54,12 @@ export const TURNAROUND_BUFFER_DAYS = 2;
 export const RECENTLY_COMPLETED_DAYS = 7;
 /** …up to this many entries. */
 export const RECENTLY_COMPLETED_MAX = 12;
+
+// --- Workload trend (needs KV history to light up) ---
+
+/** Compare today's load against the median of the prior this-many days. */
+export const TREND_WINDOW_DAYS = 30;
+/** Don't show a workload read until we have this many prior days banked. */
+export const TREND_MIN_DAYS = 7;
+/** How far from the typical median counts as "busier"/"quieter" (percent). */
+export const WORKLOAD_BAND_PCT = 15;

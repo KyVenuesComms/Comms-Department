@@ -1,13 +1,16 @@
 import { Board } from "@/features/board/Board";
-import { getQueueSnapshot } from "@/lib/trello/snapshot";
+import { getQueueSnapshot, getWorkloadContext } from "@/lib/trello/snapshot";
+import type { WorkloadContext } from "@/lib/queue/types";
 
 // Reads live Trello data on each request — not prerendered at build time.
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   let snapshot = null;
+  let workload: WorkloadContext | null = null;
   try {
     snapshot = await getQueueSnapshot();
+    workload = await getWorkloadContext(snapshot.activeTotal);
   } catch {
     snapshot = null;
   }
@@ -33,6 +36,7 @@ export default async function Home() {
       closedCount={snapshot.closed.length}
       activeTotal={snapshot.activeTotal}
       metrics={snapshot.metrics}
+      workload={workload}
       updatedAt={snapshot.updatedAt}
       stale={snapshot.stale}
     />

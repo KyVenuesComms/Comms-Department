@@ -3,7 +3,7 @@
 import { ChevronDown, CircleCheck, Clock, Flag, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Project, ProjectType, QueueMetrics } from "@/lib/queue/types";
+import type { Project, ProjectType, QueueMetrics, WorkloadContext } from "@/lib/queue/types";
 import { fmtDate } from "./format";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectSearch, type SearchResult } from "./ProjectSearch";
@@ -42,12 +42,13 @@ interface BoardProps {
   closedCount: number;
   activeTotal: number;
   metrics: QueueMetrics;
+  workload: WorkloadContext | null;
   updatedAt: string;
   stale: boolean;
 }
 
 export function Board(props: BoardProps) {
-  const { requested, inProgress, outForApproval, closedCount, activeTotal, metrics, updatedAt, stale } = props;
+  const { requested, inProgress, outForApproval, closedCount, activeTotal, metrics, workload, updatedAt, stale } = props;
   const router = useRouter();
   const [dept, setDept] = useState<"all" | "Expositions">("all");
   const [type, setType] = useState<ProjectType | "all">("all");
@@ -172,6 +173,17 @@ export function Board(props: BoardProps) {
                     </div>
                   ))}
                 </div>
+
+                {workload && (
+                  <div
+                    className="mt-2.5 text-[13px] font-semibold"
+                    style={{ color: workload.level === "busier" ? "#B4670C" : workload.level === "quieter" ? "#12833B" : "#8A8A82" }}
+                  >
+                    {workload.level === "busier" && `Busier than usual — about ${workload.pct}% above a typical week`}
+                    {workload.level === "quieter" && `Quieter than usual — about ${Math.abs(workload.pct)}% below a typical week`}
+                    {workload.level === "typical" && "About a typical week right now"}
+                  </div>
+                )}
 
                 {recent.length > 0 && (
                   <>

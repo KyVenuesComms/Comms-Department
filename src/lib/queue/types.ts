@@ -60,6 +60,25 @@ export interface Move {
   at: string;
 }
 
+/** One day's workload counts, banked by the scheduled refresh. */
+export interface TrendPoint {
+  /** YYYY-MM-DD (Eastern). */
+  date: string;
+  active: number;
+  requested: number;
+  inProgress: number;
+  outForApproval: number;
+}
+
+/** How today's active load compares to a typical recent day. */
+export interface WorkloadContext {
+  level: "busier" | "typical" | "quieter";
+  /** Percent above/below the typical (median) day. */
+  pct: number;
+  /** How many prior days the comparison is based on. */
+  sampleDays: number;
+}
+
 /** Computed, board-wide numbers. Built once per refresh, never in the UI. */
 export interface QueueMetrics {
   /** Typical time from request to "out for approval," with buffer. Null if too few samples. */
