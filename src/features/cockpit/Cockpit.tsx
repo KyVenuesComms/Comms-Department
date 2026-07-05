@@ -275,9 +275,22 @@ export function Cockpit({
           </div>
           <div className={CARD} style={CARD_STYLE}>
             <p className={K} style={{ color: "#8A8A82" }}>4-week outlook</p>
-            <div className="text-[30px] font-extrabold tabular-nums" style={{ color: cockpit.forecast.weeklyNet > 0 ? "#B4670C" : "#12833B" }}>{cockpit.forecast.inFourWeeks}</div>
+            <div className="text-[30px] font-extrabold tabular-nums" style={{ color: cockpit.forecast.weeklyNet > 0 ? "#B4670C" : "#12833B" }}>
+              {cockpit.forecast.seasonal?.inFourWeeks ?? cockpit.forecast.inFourWeeks}
+            </div>
             <p className="text-[12px]" style={{ color: "#6A6A63" }}>
-              active at current pace ({cockpit.forecast.weeklyNet >= 0 ? "+" : ""}{cockpit.forecast.weeklyNet}/wk)
+              {cockpit.forecast.seasonal ? (
+                <>
+                  seasonal ({cockpit.forecast.seasonal.years} yr history):{" "}
+                  <b style={{ color: cockpit.forecast.seasonal.pctChange > 0 ? "#B4670C" : "#12833B" }}>
+                    {cockpit.forecast.seasonal.pctChange >= 0 ? "+" : ""}
+                    {cockpit.forecast.seasonal.pctChange}% intake
+                  </b>{" "}
+                  → ~{cockpit.forecast.seasonal.expectedIntake} new · {cockpit.forecast.inFourWeeks} at flat pace
+                </>
+              ) : (
+                <>active at current pace ({cockpit.forecast.weeklyNet >= 0 ? "+" : ""}{cockpit.forecast.weeklyNet}/wk)</>
+              )}
             </p>
           </div>
           <div className={CARD} style={CARD_STYLE}>

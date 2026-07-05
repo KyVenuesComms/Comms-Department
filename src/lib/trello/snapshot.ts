@@ -17,7 +17,7 @@ import {
   writeSnapshot,
   type LastSync,
 } from "../store/store";
-import { fetchBoardCards, fetchListMoves } from "./client";
+import { fetchArchivedCreatedMs, fetchBoardCards, fetchListMoves } from "./client";
 import type { QueueSnapshot } from "./snapshot-types";
 
 export type { QueueSnapshot };
@@ -28,11 +28,16 @@ function todayET(): string {
 }
 
 async function build(): Promise<QueueSnapshot> {
-  const [cards, moves] = await Promise.all([
+  const [cards, moves, archivedCreatedMs] = await Promise.all([
     fetchBoardCards(),
     fetchListMoves().catch((err) => {
       console.warn("[queue] move history unavailable:", err);
-      return [];
+      return [] as Awaited<ReturnType<typeof fetchListMoves>>;
+    }),
+    // Archived-card creations deepen the seasonal forecast — non-fatal.
+    fetchArchivedCreatedMs().catch((err) => {
+      console.warn("[queue] archived history unavailable:", err);
+      return [] as number[];
     }),
   ]);
 
@@ -59,6 +64,7 @@ async function build(): Promise<QueueSnapshot> {
     moves,
     nowMs,
     metrics.turnaround?.quotedDays ?? null,
+    archivedCreatedMs,
   );
   const unassigned = cockpit.byDepartment.find((d) => d.name === "Unassigned")?.active ?? 0;
   console.info(

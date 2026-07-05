@@ -3,6 +3,7 @@
 // output, find the limiting step, surface the highest-leverage move.
 import { TARGETS } from "./config";
 import { cardCreatedAt, statusForList } from "./map";
+import { seasonalOutlook } from "./seasonal";
 import type { CockpitData, Move, Project } from "./types";
 
 const DAY = 86_400_000;
@@ -29,6 +30,7 @@ export function computeCockpit(
   moves: Move[],
   nowMs: number,
   turnaroundQuotedDays: number | null = null,
+  archivedCreatedMs: number[] = [],
 ): CockpitData {
   const active = [...requested, ...inProgress, ...outForApproval];
 
@@ -189,9 +191,27 @@ export function computeCockpit(
     netSum += intakePerWeek[i] - shippedPerWeek[i];
   }
   const weeklyNet = Math.round(netSum / recentWeeks);
+
+  // Seasonal read from the board's full history (visible + archived creations).
+  const recentIntake28 = all.filter((p) => createdAge(p) < 28 * DAY).length;
+  const shippedAvg =
+    shippedPerWeek.slice(-recentWeeks).reduce((s, n) => s + n, 0) / recentWeeks;
+  const allCreatedMs = [
+    ...all.map((p) => new Date(p.createdAt).getTime()),
+    ...archivedCreatedMs,
+  ];
+  const seasonal = seasonalOutlook(
+    allCreatedMs,
+    nowMs,
+    recentIntake28,
+    active.length,
+    shippedAvg,
+  );
+
   const forecast = {
     weeklyNet,
     inFourWeeks: Math.max(0, active.length + weeklyNet * 4),
+    seasonal,
   };
 
   // Intake heatmap: which weekday requests arrive (Mon..Sun), last 8 weeks.
@@ -301,6 +321,11 @@ export function computeCockpit(
   }
   if (weeklyNet > TARGETS.weeklyNetGrowth) {
     alerts.push(`Backlog growing ~${weeklyNet}/week — on pace for ${forecast.inFourWeeks} active in 4 weeks.`);
+  }
+  if (seasonal && seasonal.pctChange >= 25) {
+    alerts.push(
+      `Seasonal ramp ahead: history (${seasonal.years} yr${seasonal.years > 1 ? "s" : ""}) says intake rises ~${seasonal.pctChange}% over the next 4 weeks — expect ~${seasonal.expectedIntake} new requests.`,
+    );
   }
 
   return {

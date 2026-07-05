@@ -78,6 +78,27 @@ export async function fetchBoardCards(): Promise<RawCard[]> {
   }));
 }
 
+/**
+ * Creation timestamps of ARCHIVED cards (creation time is encoded in the card
+ * id, so we fetch ids only). Paginated defensively; the archive is small today
+ * (~170 cards) but this stays correct if it grows.
+ */
+export async function fetchArchivedCreatedMs(): Promise<number[]> {
+  const { boardId } = creds();
+  const out: number[] = [];
+  let before = "";
+  for (let page = 0; page < 10; page++) {
+    const cards = await get<{ id: string }[]>(
+      `/boards/${boardId}/cards?filter=closed&fields=none&limit=1000${before ? `&before=${before}` : ""}`,
+    );
+    if (cards.length === 0) break;
+    for (const c of cards) out.push(parseInt(c.id.slice(0, 8), 16) * 1000);
+    if (cards.length < 1000) break;
+    before = cards[cards.length - 1].id;
+  }
+  return out;
+}
+
 interface TrelloMoveAction {
   date: string;
   data?: {

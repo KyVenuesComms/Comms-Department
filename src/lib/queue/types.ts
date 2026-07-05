@@ -128,7 +128,23 @@ export interface CockpitData {
   /** Departments whose requests are stuck waiting on info (top offenders). */
   missingInfoByDept: { name: string; waiting: number; active: number }[];
   /** Backlog projection at the recent average net flow. */
-  forecast: { weeklyNet: number; inFourWeeks: number };
+  forecast: {
+    weeklyNet: number;
+    inFourWeeks: number;
+    /** History-based seasonal read (closed + archived cards), when solid. */
+    seasonal: {
+      /** % intake change history predicts for the next 4 weeks vs the last 4. */
+      pctChange: number;
+      /** Expected requests in the next 4 weeks (recent intake × ramp ratio). */
+      expectedIntake: number;
+      /** Intake seen in the last 4 weeks. */
+      recentIntake: number;
+      /** Seasonally-adjusted active total in 4 weeks. */
+      inFourWeeks: number;
+      /** How many prior years the ratio is drawn from. */
+      years: number;
+    } | null;
+  };
   /** Intake by weekday (Mon..Sun), last 8 weeks. */
   intakeByDay: number[];
   /** Active work per stage bucketed by age: [0–7, 8–14, 15–30, 30+] days. */
