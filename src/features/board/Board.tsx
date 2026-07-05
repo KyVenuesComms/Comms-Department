@@ -44,12 +44,13 @@ interface BoardProps {
   activeTotal: number;
   metrics: QueueMetrics;
   workload: WorkloadContext | null;
+  showChips: { slug: string; label: string }[];
   updatedAt: string;
   stale: boolean;
 }
 
 export function Board(props: BoardProps) {
-  const { requested, inProgress, outForApproval, closedCount, activeTotal, metrics, workload, updatedAt, stale } = props;
+  const { requested, inProgress, outForApproval, closedCount, activeTotal, metrics, workload, showChips, updatedAt, stale } = props;
   const router = useRouter();
   const [dept, setDept] = useState<string>("all");
   const [type, setType] = useState<ProjectType | "all">("all");
@@ -112,10 +113,23 @@ export function Board(props: BoardProps) {
               <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.015em] sm:text-[32px]" style={{ color: "#131311" }}>
                 Kentucky Venues Work Order Status
               </h1>
-              <p className="flex flex-none items-center gap-1.5 pt-2 text-[13px] font-medium" style={{ color: "#A0A099" }}>
-                <RefreshCw size={14} aria-hidden="true" />
-                {stale ? "Last good data" : `Updated ${agoLabel(updatedAt, now)}`}
-              </p>
+              <div className="flex flex-none flex-col items-end gap-2 pt-2">
+                <p className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: "#A0A099" }}>
+                  <RefreshCw size={14} aria-hidden="true" />
+                  {stale ? "Last good data" : `Updated ${agoLabel(updatedAt, now)}`}
+                </p>
+                {showChips.map((c) => (
+                  <a
+                    key={c.slug}
+                    href={`/shows/${c.slug}`}
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-bold no-underline"
+                    style={{ background: "#E7F6ED", color: "#12833B" }}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ background: "#17A34A" }} aria-hidden="true" />
+                    {c.label}
+                  </a>
+                ))}
+              </div>
             </div>
 
             <div className="my-[22px] h-px" style={{ background: "#EDEDE8" }} />

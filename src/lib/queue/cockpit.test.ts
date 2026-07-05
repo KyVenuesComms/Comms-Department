@@ -21,6 +21,7 @@ function proj(over: Partial<Project>): Project {
     dueAt: null,
     dueComplete: false,
     assignee: null,
+    show: null,
     ...over,
   };
 }
@@ -110,5 +111,83 @@ describe("computeCockpit", () => {
     const c = computeCockpit(active, [], [], [], [], NOW);
     expect(c.waitingForInfo).toBe(5);
     expect(c.leverage).toMatch(/Nudge requesters/);
+  });
+
+  // Trello card ids encode creation time in the first 8 hex chars.
+  const idAt = (d: number) =>
+    Math.floor((NOW - d * DAY) / 1000).toString(16).padStart(8, "0") + "0".repeat(16);
+
+  it("computes cycle-time percentiles from created→closed", () => {
+    // 6 cards, created 10..60 days before their close (close = 1 day ago).
+    const moves: Move[] = [10, 20, 30, 40, 50, 60].map((span, i) => ({
+      cardId: idAt(span + 1).slice(0, 8) + String(i).padStart(16, "0"),
+      cardName: `c${i}`,
+      toList: "Closed Jobs",
+      at: ago(1),
+    }));
+    const c = computeCockpit([], [], [], [], moves, NOW);
+    expect(c.cycleTime).not.toBeNull();
+    expect(c.cycleTime!.sampleSize).toBe(6);
+    expect(c.cycleTime!.p50).toBeGreaterThanOrEqual(29);
+    expect(c.cycleTime!.p85).toBeGreaterThanOrEqual(49);
+  });
+
+  it("computes rework: approval followed by a move back to in-progress", () => {
+    const mv = (cardId: string, toList: string, d: number): Move => ({ cardId, cardName: cardId, toList, at: ago(d) });
+    const moves = [
+      // 5 cards reached approval; 1 bounced back afterward.
+      mv("a", "Out For Approval", 10), mv("a", "In Progress", 8), // bounced
+      mv("b", "Out For Approval", 9),
+      mv("c", "Out For Approval", 8),
+      mv("d", "Out For Approval", 7),
+      mv("e", "Out For Approval", 6),
+      mv("f", "In Progress", 5), // never reached approval — not in sample
+    ];
+    const c = computeCockpit([], [], [], [], moves, NOW);
+    expect(c.rework).toEqual({ bounced: 1, sample: 5, pct: 20 });
+  });
+
+  it("ranks missing-info concentration by department", () => {
+    const active = [
+      proj({ departments: ["Finance"], flags: ["Waiting for Info"] }),
+      proj({ departments: ["Finance"], flags: ["Waiting for Info"] }),
+      proj({ departments: ["Finance"] }),
+      proj({ departments: ["Legal"], flags: ["Waiting for Info"] }),
+      proj({ departments: ["Communications"] }),
+    ];
+    const c = computeCockpit(active, [], [], [], [], NOW);
+    expect(c.missingInfoByDept[0]).toEqual({ name: "Finance", waiting: 2, active: 3 });
+    expect(c.missingInfoByDept.some((d) => d.name === "Communications")).toBe(false);
+  });
+
+  it("projects the backlog from recent average net flow", () => {
+    // 8 created in the last week, nothing shipped → weeklyNet 2 (8/4 weeks avg).
+    const req = Array.from({ length: 8 }, () => proj({ createdAt: ago(2) }));
+    const c = computeCockpit(req, [], [], [], [], NOW);
+    expect(c.forecast.weeklyNet).toBe(2);
+    expect(c.forecast.inFourWeeks).toBe(8 + 2 * 4);
+  });
+
+  it("buckets active work by age per stage", () => {
+    const req = [
+      proj({ enteredStageAt: ago(2) }), // 0–7
+      proj({ enteredStageAt: ago(10) }), // 8–14
+      proj({ enteredStageAt: ago(20) }), // 15–30
+      proj({ enteredStageAt: ago(45) }), // 30+
+    ];
+    const c = computeCockpit(req, [], [], [], [], NOW);
+    expect(c.agingBuckets[0]).toEqual({ stage: "In Queue", buckets: [1, 1, 1, 1] });
+  });
+
+  it("raises threshold alerts against targets", () => {
+    const overdueLots = Array.from({ length: 25 }, () => proj({ dueAt: ago(3) }));
+    const c = computeCockpit(overdueLots, [], [], [], [], NOW, 35);
+    expect(c.alerts.some((a) => a.includes("Overdue is 25"))).toBe(true);
+    expect(c.alerts.some((a) => a.includes("Turnaround is ~35"))).toBe(true);
+  });
+
+  it("stays quiet when everything is inside targets", () => {
+    const c = computeCockpit([proj({})], [], [], [], [], NOW, 21);
+    expect(c.alerts).toEqual([]);
   });
 });

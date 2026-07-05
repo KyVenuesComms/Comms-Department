@@ -60,6 +60,8 @@ export interface Project {
   dueComplete: boolean;
   /** Assigned team member's name, or null. */
   assignee: string | null;
+  /** Show slug this card belongs to (matched by name/Show-Event), or null. */
+  show: string | null;
 }
 
 /** A single list-move from Trello's action history. */
@@ -80,6 +82,9 @@ export interface TrendPoint {
   requested: number;
   inProgress: number;
   outForApproval: number;
+  /** Risk metrics (added later — absent on older banked points). */
+  overdue?: number;
+  waitingForInfo?: number;
 }
 
 /** How today's active load compares to a typical recent day. */
@@ -116,6 +121,22 @@ export interface CockpitData {
   bottleneck: { stage: string; reason: string } | null;
   /** The single highest-leverage move right now, in plain English. */
   leverage: string;
+  /** Completed-work speed spread: "85% finish within p85 days". Null if thin. */
+  cycleTime: { p50: number; p85: number; sampleSize: number } | null;
+  /** Cards bounced backward from approval — first-time-right quality. */
+  rework: { bounced: number; sample: number; pct: number } | null;
+  /** Departments whose requests are stuck waiting on info (top offenders). */
+  missingInfoByDept: { name: string; waiting: number; active: number }[];
+  /** Backlog projection at the recent average net flow. */
+  forecast: { weeklyNet: number; inFourWeeks: number };
+  /** Intake by weekday (Mon..Sun), last 8 weeks. */
+  intakeByDay: number[];
+  /** Active work per stage bucketed by age: [0–7, 8–14, 15–30, 30+] days. */
+  agingBuckets: { stage: string; buckets: [number, number, number, number] }[];
+  /** Avg days spent per stage, from recently observed stage transitions. */
+  stageTime: { stage: string; avgDays: number; sample: number }[];
+  /** Triggered threshold alerts (vs TARGETS), plain English. */
+  alerts: string[];
 }
 
 /** Computed, board-wide numbers. Built once per refresh, never in the UI. */

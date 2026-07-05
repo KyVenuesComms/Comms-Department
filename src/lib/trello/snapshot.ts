@@ -51,7 +51,15 @@ async function build(): Promise<QueueSnapshot> {
     recentlyCompleted: recentlyCompleted(moves, nowMs),
     perDepartment: perDepartment(requested, inProgress, outForApproval),
   };
-  const cockpit = computeCockpit(requested, inProgress, outForApproval, closed, moves, nowMs);
+  const cockpit = computeCockpit(
+    requested,
+    inProgress,
+    outForApproval,
+    closed,
+    moves,
+    nowMs,
+    metrics.turnaround?.quotedDays ?? null,
+  );
   const unassigned = cockpit.byDepartment.find((d) => d.name === "Unassigned")?.active ?? 0;
   console.info(
     `[cockpit] net +${cockpit.netFlow.intakeWeek}/-${cockpit.netFlow.shippedWeek} (${cockpit.netFlow.net >= 0 ? "+" : ""}${cockpit.netFlow.net}) · overdue ${cockpit.overdue} · waiting ${cockpit.waitingForInfo} · depts ${cockpit.byDepartment.filter((d) => d.name !== "Unassigned").slice(0, 3).map((d) => `${d.name}:${d.active}`).join(", ")} · unassigned ${unassigned} · bottleneck ${cockpit.bottleneck?.stage ?? "none"} · lever: ${cockpit.leverage}`,
@@ -125,6 +133,8 @@ export async function refreshQueue(): Promise<QueueSnapshot> {
       requested: snap.requested.length,
       inProgress: snap.inProgress.length,
       outForApproval: snap.outForApproval.length,
+      overdue: snap.cockpit.overdue,
+      waitingForInfo: snap.cockpit.waitingForInfo,
     };
     await appendTrendPoint(point);
     const sync: LastSync = {
@@ -155,4 +165,10 @@ export async function refreshQueue(): Promise<QueueSnapshot> {
 export async function getWorkloadContext(activeToday: number): Promise<WorkloadContext | null> {
   const trend = await readTrend().catch(() => []);
   return workloadContext(trend, activeToday, todayET());
+}
+
+/** Banked daily points, oldest → newest — feeds the cumulative flow diagram. */
+export async function getTrendSeries(): Promise<TrendPoint[]> {
+  const trend = await readTrend().catch(() => []);
+  return trend.sort((a, b) => a.date.localeCompare(b.date));
 }

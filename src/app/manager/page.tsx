@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { Cockpit } from "@/features/cockpit/Cockpit";
 import { ManagerLogin } from "@/features/cockpit/ManagerLogin";
 import { MGR_COOKIE, isAuthed, managerConfigured } from "@/lib/auth";
-import { getQueueSnapshot } from "@/lib/trello/snapshot";
+import { getQueueSnapshot, getTrendSeries } from "@/lib/trello/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +37,13 @@ export default async function ManagerPage() {
     return <Notice title="Can't reach Trello right now" body="The cockpit will reappear once the connection is back." />;
   }
 
+  const trend = await getTrendSeries().catch(() => []);
+
   return (
     <Cockpit
       cockpit={snapshot.cockpit}
       turnaround={snapshot.metrics.turnaround}
+      trend={trend}
       updatedAt={snapshot.updatedAt}
       stale={snapshot.stale}
     />

@@ -57,6 +57,18 @@ export const RECENTLY_COMPLETED_MAX = 12;
 
 // --- Workload trend (needs KV history to light up) ---
 
+// --- Leadership targets (the "vs target" context on the cockpit; tune freely) ---
+export const TARGETS = {
+  /** Quoted turnaround should stay at or under this many days. */
+  turnaroundDays: 28,
+  /** Overdue active projects should stay under this. */
+  overdue: 20,
+  /** Waiting-for-info should stay under this. */
+  waitingForInfo: 30,
+  /** Alert when the backlog is growing faster than this per week (avg). */
+  weeklyNetGrowth: 5,
+};
+
 /** Compare today's load against the median of the prior this-many days. */
 export const TREND_WINDOW_DAYS = 30;
 /** Don't show a workload read until we have this many prior days banked. */

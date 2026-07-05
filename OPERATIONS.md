@@ -47,3 +47,16 @@ and redeploy. Examples: `*/15 * * * *` (15 min), `*/30 * * * *` (30 min),
   equivalents; the store reads whichever is present).
 - `CRON_SECRET` *(optional)* — if set, the cron route requires
   `Authorization: Bearer <CRON_SECRET>`. Vercel Cron sends this automatically.
+- `MANAGER_PASSWORD` — shared password for the /manager cockpit (fail-closed).
+- `TEAMS_WEBHOOK_URL` *(optional)* — Microsoft Teams incoming webhook. When set,
+  the daily cron posts newly-triggered threshold alerts (deduped in KV). Unset =
+  alerts display on /manager only.
+
+## Show pages
+- Configured in `src/lib/queue/shows.ts` (one entry per show: slug, dates,
+  match keywords). Cards match by name keywords or the "Show/Event:" field.
+- Pages: `/shows` (index) and `/shows/<slug>` (countdown + readiness + risk).
+  Public like the main board. A chip on the board header links to any show
+  that hasn't wrapped.
+- Leadership targets for the cockpit's red/amber/green + alerts live in
+  `TARGETS` in `src/lib/queue/config.ts`.

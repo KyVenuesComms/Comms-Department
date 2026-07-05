@@ -72,3 +72,20 @@ export async function readLastSync(): Promise<LastSync | null> {
   if (!redis) return memSync;
   return (await redis.get<LastSync>(SYNC_KEY)) ?? null;
 }
+
+// Last alert set we notified about (dedupes webhook pings across cron runs).
+const ALERT_KEY = "wos:lastalerts";
+let memAlerts: string | null = null;
+
+export async function readLastAlerts(): Promise<string | null> {
+  if (!redis) return memAlerts;
+  return (await redis.get<string>(ALERT_KEY)) ?? null;
+}
+
+export async function writeLastAlerts(sig: string): Promise<void> {
+  if (!redis) {
+    memAlerts = sig;
+    return;
+  }
+  await redis.set(ALERT_KEY, sig);
+}

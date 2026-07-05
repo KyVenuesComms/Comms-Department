@@ -1,4 +1,5 @@
 import { Board } from "@/features/board/Board";
+import { SHOWS, showPhase } from "@/lib/queue/shows";
 import { getQueueSnapshot, getWorkloadContext } from "@/lib/trello/snapshot";
 import type { WorkloadContext } from "@/lib/queue/types";
 
@@ -28,6 +29,19 @@ export default async function Home() {
     );
   }
 
+  // Chips for shows that haven't wrapped yet ("Kentucky State Fair · 46 days").
+  // "Now" = the snapshot time (pure for render; fresh within the refresh window).
+  const nowMs = new Date(snapshot.updatedAt).getTime();
+  const showChips = SHOWS.map((s) => ({ show: s, phase: showPhase(s, nowMs) }))
+    .filter(({ phase }) => phase.phase !== "after")
+    .map(({ show, phase }) => ({
+      slug: show.slug,
+      label:
+        phase.phase === "during"
+          ? `${show.name} · LIVE`
+          : `${show.name} · ${phase.days} day${phase.days === 1 ? "" : "s"}`,
+    }));
+
   return (
     <Board
       requested={snapshot.requested}
@@ -37,6 +51,7 @@ export default async function Home() {
       activeTotal={snapshot.activeTotal}
       metrics={snapshot.metrics}
       workload={workload}
+      showChips={showChips}
       updatedAt={snapshot.updatedAt}
       stale={snapshot.stale}
     />

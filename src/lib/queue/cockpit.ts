@@ -1,13 +1,21 @@
 // Pure leadership-cockpit aggregates. No I/O — takes the mapped projects + move
 // history and returns the numbers the /manager page shows. Grove's lens: measure
 // output, find the limiting step, surface the highest-leverage move.
-import { statusForList } from "./map";
+import { TARGETS } from "./config";
+import { cardCreatedAt, statusForList } from "./map";
 import type { CockpitData, Move, Project } from "./types";
 
 const DAY = 86_400_000;
 const WEEK = 7 * DAY;
 const AGING = 14 * DAY; // "stuck" = in its current stage over 2 weeks
 const SHIPPED_WEEKS = 6;
+const CYCLE_WINDOW = 60 * DAY; // completed-work window for percentiles
+const INTAKE_HEAT_WEEKS = 8;
+
+function percentile(sorted: number[], p: number): number {
+  const idx = Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1);
+  return sorted[Math.max(0, idx)];
+}
 
 function ms(iso: string | null): number | null {
   return iso ? new Date(iso).getTime() : null;
@@ -20,6 +28,7 @@ export function computeCockpit(
   closed: Project[],
   moves: Move[],
   nowMs: number,
+  turnaroundQuotedDays: number | null = null,
 ): CockpitData {
   const active = [...requested, ...inProgress, ...outForApproval];
 
@@ -108,6 +117,142 @@ export function computeCockpit(
       ? { stage: stages[0].stage, reason: `${stages[0].n} sitting over 2 weeks` }
       : null;
 
+  // Cycle-time percentiles: created → closed, recent window, deduped per card.
+  const closeAt = new Map<string, number>();
+  for (const m of moves) {
+    if (statusForList(m.toList) !== "closed") continue;
+    const t = new Date(m.at).getTime();
+    if (t <= nowMs && t > (closeAt.get(m.cardId) ?? 0)) closeAt.set(m.cardId, t);
+  }
+  const cycleSamples = [...closeAt]
+    .filter(([, t]) => nowMs - t < CYCLE_WINDOW)
+    .map(([id, t]) => (t - new Date(cardCreatedAt(id)).getTime()) / DAY)
+    .filter((d) => d >= 0 && d < 365)
+    .sort((a, b) => a - b);
+  const cycleTime =
+    cycleSamples.length >= 5
+      ? {
+          p50: Math.round(percentile(cycleSamples, 0.5)),
+          p85: Math.round(percentile(cycleSamples, 0.85)),
+          sampleSize: cycleSamples.length,
+        }
+      : null;
+
+  // Rework: cards that entered approval, then later moved BACK to in-progress.
+  const byCard = new Map<string, Move[]>();
+  for (const m of moves) {
+    const arr = byCard.get(m.cardId) ?? [];
+    arr.push(m);
+    byCard.set(m.cardId, arr);
+  }
+  let reworkSample = 0;
+  let bounced = 0;
+  for (const arr of byCard.values()) {
+    const seq = arr
+      .map((m) => ({ t: new Date(m.at).getTime(), s: statusForList(m.toList) }))
+      .sort((a, b) => a.t - b.t);
+    const firstApproval = seq.find((x) => x.s === "out-for-approval");
+    if (!firstApproval) continue;
+    reworkSample++;
+    if (seq.some((x) => x.s === "in-progress" && x.t > firstApproval.t)) bounced++;
+  }
+  const rework =
+    reworkSample >= 5
+      ? { bounced, sample: reworkSample, pct: Math.round((bounced / reworkSample) * 100) }
+      : null;
+
+  // Missing-info concentration: which departments' requests are stuck on them.
+  const infoMap = new Map<string, { waiting: number; active: number }>();
+  for (const p of active) {
+    const name = p.departments[0] ?? "Unassigned";
+    const e = infoMap.get(name) ?? { waiting: 0, active: 0 };
+    e.active++;
+    if (p.flags.includes("Waiting for Info")) e.waiting++;
+    infoMap.set(name, e);
+  }
+  const missingInfoByDept = [...infoMap]
+    .map(([name, v]) => ({ name, ...v }))
+    .filter((d) => d.waiting > 0)
+    .sort((a, b) => b.waiting - a.waiting)
+    .slice(0, 6);
+
+  // Forecast: average weekly net over the last 4 observed weeks, projected out.
+  const intakePerWeek = new Array(SHIPPED_WEEKS).fill(0);
+  for (const p of all) {
+    const wk = Math.floor(createdAge(p) / WEEK);
+    if (wk >= 0 && wk < SHIPPED_WEEKS) intakePerWeek[wk]++;
+  }
+  intakePerWeek.reverse(); // oldest → newest, matching shippedPerWeek
+  const recentWeeks = 4;
+  let netSum = 0;
+  for (let i = SHIPPED_WEEKS - recentWeeks; i < SHIPPED_WEEKS; i++) {
+    netSum += intakePerWeek[i] - shippedPerWeek[i];
+  }
+  const weeklyNet = Math.round(netSum / recentWeeks);
+  const forecast = {
+    weeklyNet,
+    inFourWeeks: Math.max(0, active.length + weeklyNet * 4),
+  };
+
+  // Intake heatmap: which weekday requests arrive (Mon..Sun), last 8 weeks.
+  const dayIdx: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  const intakeByDay = new Array(7).fill(0);
+  for (const p of all) {
+    if (createdAge(p) >= INTAKE_HEAT_WEEKS * WEEK) continue;
+    const wd = new Date(p.createdAt).toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "America/New_York",
+    });
+    if (wd in dayIdx) intakeByDay[dayIdx[wd]]++;
+  }
+
+  // Aging buckets per stage: [0–7, 8–14, 15–30, 30+] days in current stage.
+  const bucketOf = (days: number) => (days <= 7 ? 0 : days <= 14 ? 1 : days <= 30 ? 2 : 3);
+  const agingFor = (arr: Project[], stage: string) => {
+    const buckets: [number, number, number, number] = [0, 0, 0, 0];
+    for (const p of arr) {
+      const entered = ms(p.enteredStageAt) ?? new Date(p.createdAt).getTime();
+      buckets[bucketOf((nowMs - entered) / DAY)]++;
+    }
+    return { stage, buckets };
+  };
+  const agingBuckets = [
+    agingFor(requested, "In Queue"),
+    agingFor(inProgress, "In Progress"),
+    agingFor(outForApproval, "Out for Approval"),
+  ];
+
+  // Stage time: avg days between observed consecutive moves (recent window).
+  const stageAgg = new Map<string, { total: number; n: number }>();
+  const STAGE_NAMES: Record<string, string> = {
+    requested: "In Queue",
+    "in-progress": "In Progress",
+    "out-for-approval": "Out for Approval",
+  };
+  for (const arr of byCard.values()) {
+    const seq = arr
+      .map((m) => ({ t: new Date(m.at).getTime(), s: statusForList(m.toList) }))
+      .sort((a, b) => a.t - b.t);
+    for (let i = 0; i < seq.length - 1; i++) {
+      const label = STAGE_NAMES[seq[i].s];
+      if (!label) continue;
+      const days = (seq[i + 1].t - seq[i].t) / DAY;
+      if (days < 0 || days > 365) continue;
+      const e = stageAgg.get(label) ?? { total: 0, n: 0 };
+      e.total += days;
+      e.n++;
+      stageAgg.set(label, e);
+    }
+  }
+  const stageTime = ["In Queue", "In Progress", "Out for Approval"]
+    .map((stage) => {
+      const e = stageAgg.get(stage);
+      return e && e.n >= 3
+        ? { stage, avgDays: Math.round((e.total / e.n) * 10) / 10, sample: e.n }
+        : null;
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
   // Oldest active work by time in its current stage — the attention list.
   const STAGE_LABEL: Record<string, string> = {
     requested: "In Queue",
@@ -143,9 +288,32 @@ export function computeCockpit(
     leverage = "Team's keeping pace — no single big unblock right now.";
   }
 
+  // Threshold alerts vs TARGETS — plain English, ready for display or webhook.
+  const alerts: string[] = [];
+  if (overdue > TARGETS.overdue) {
+    alerts.push(`Overdue is ${overdue} — target is under ${TARGETS.overdue}.`);
+  }
+  if (waitingForInfo > TARGETS.waitingForInfo) {
+    alerts.push(`${waitingForInfo} projects waiting on info — target is under ${TARGETS.waitingForInfo}.`);
+  }
+  if (turnaroundQuotedDays !== null && turnaroundQuotedDays > TARGETS.turnaroundDays) {
+    alerts.push(`Turnaround is ~${turnaroundQuotedDays} days — target is ${TARGETS.turnaroundDays}.`);
+  }
+  if (weeklyNet > TARGETS.weeklyNetGrowth) {
+    alerts.push(`Backlog growing ~${weeklyNet}/week — on pace for ${forecast.inFourWeeks} active in 4 weeks.`);
+  }
+
   return {
     netFlow: { intakeWeek, shippedWeek, net, prevIntakeWeek, prevShippedWeek },
     agedItems,
+    cycleTime,
+    rework,
+    missingInfoByDept,
+    forecast,
+    intakeByDay,
+    agingBuckets,
+    stageTime,
+    alerts,
     overdue,
     dueThisWeek,
     waitingForInfo,

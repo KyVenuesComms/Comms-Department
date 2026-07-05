@@ -105,6 +105,7 @@ function proj(over: Partial<Project>): Project {
     dueAt: null,
     dueComplete: false,
     assignee: null,
+    show: null,
     ...over,
   };
 }
