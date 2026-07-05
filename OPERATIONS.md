@@ -1,20 +1,28 @@
 # Operations — Work Order Status
 
 ## How data flows
-- A **Vercel Cron** hits `/api/cron/refresh` every 15 minutes.
-- That rebuilds the snapshot from Trello, writes it to **Vercel KV**, and banks
-  one **daily trend point** (used for the "busier than usual" read).
-- **Visitors read the stored snapshot** — they never call Trello. So load stays
-  instant and Trello usage doesn't grow with traffic.
+- Visitors read the snapshot from **Vercel KV**. When that stored copy is older
+  than ~15 min (or missing), the next page load **rebuilds it from Trello and
+  re-caches it** — so ordinary traffic keeps the board fresh, no frequent cron
+  needed. This works on any Vercel plan.
+- A **once-daily cron** (`/api/cron/refresh`) is a backstop: it guarantees at
+  least one refresh per day and banks that day's **trend point** even if nobody
+  visits (used for the "busier than usual" read). The cron can also be run
+  manually by hitting the endpoint.
 - If KV isn't connected, everything still works: the page builds the snapshot
-  in-memory on demand (throttled), just without cross-instance caching or trend
+  in-memory on demand (throttled), without cross-instance caching or trend
   history.
 
-## Rate limits (why 15 min is safe)
-- One refresh makes ~5 Trello calls (lists + cards + move history).
-- 96 runs/day ≈ **~480 Trello calls/day total**; visitor loads add **zero**.
-- Trello's limit is ~300 requests per **10 seconds** — we use a tiny fraction of
-  a percent. Huge headroom.
+## Rate limits (why this is safe)
+- One rebuild makes ~5 Trello calls (lists + cards + move history), and a rebuild
+  only happens at most once per ~15 min (stale window), regardless of how many
+  people are viewing.
+- Worst case ≈ a few hundred Trello calls/day. Trello's limit is ~300 requests
+  per **10 seconds** — a tiny fraction of a percent. Huge headroom.
+- **Note:** the cron in `vercel.json` is once-daily because sub-daily crons need
+  a paid Vercel plan. Intraday freshness comes from the lazy refresh above, so
+  the daily cron is only a backstop. If you move to a plan with frequent crons
+  and prefer cron-driven refresh, set e.g. `*/15 * * * *`.
 
 ## Monitoring
 - **`/api/status`** (public, no secrets, no Trello call) returns:

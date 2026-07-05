@@ -81,18 +81,27 @@ async function getOrBuildMemory(): Promise<QueueSnapshot> {
   }
 }
 
-/** What visitors read. Prefers the stored snapshot (fast, cron-written). */
+/**
+ * What visitors read. Serves the stored snapshot when it's fresh; when it's
+ * stale (or missing), rebuilds and persists it — so the board stays ~fresh from
+ * ordinary traffic, no frequent cron needed. Falls back to the stale copy if a
+ * refresh fails, so it never blanks.
+ */
 export async function getQueueSnapshot(): Promise<QueueSnapshot> {
   if (storeMode() === "kv") {
     const stored = await readSnapshot().catch((e) => {
       console.warn("[queue] store read failed:", e);
       return null;
     });
-    if (stored) return stored;
-    // KV connected but empty (before the first cron run) — build + seed it.
-    const built = await build();
-    await writeSnapshot(built).catch((e) => console.warn("[queue] seed write failed:", e));
-    return built;
+    if (stored && Date.now() - Date.parse(stored.updatedAt) < REFRESH_MS) {
+      return stored;
+    }
+    try {
+      return await refreshQueue();
+    } catch (err) {
+      if (stored) return { ...stored, stale: true };
+      throw err;
+    }
   }
   return getOrBuildMemory();
 }
