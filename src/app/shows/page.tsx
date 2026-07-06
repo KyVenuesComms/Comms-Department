@@ -1,6 +1,6 @@
 import { CalendarDays, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { SHOWS, showPhase } from "@/lib/queue/shows";
+import { lastCallStatus, SHOWS, showPhase } from "@/lib/queue/shows";
 import { getQueueSnapshot } from "@/lib/trello/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +34,7 @@ export default async function ShowsIndex() {
         </header>
         {SHOWS.map((show) => {
           const phase = showPhase(show, nowMs);
+          const lastCall = lastCallStatus(show, nowMs);
           const label =
             phase.phase === "before"
               ? `${phase.days} days out`
@@ -52,6 +53,13 @@ export default async function ShowsIndex() {
                 <div className="mt-0.5 flex items-center gap-1.5 text-[12.5px]" style={{ color: "#6A6A63" }}>
                   <CalendarDays size={13} aria-hidden="true" /> {show.tagline ?? `${show.start} – ${show.end}`}
                 </div>
+                {lastCall && (
+                  <div className="mt-1 text-[12px] font-semibold" style={{ color: lastCall.state === "open" ? "#B4670C" : "#B23A3A" }}>
+                    {lastCall.state === "open"
+                      ? `Work-order last call: ${lastCall.days} ${lastCall.days === 1 ? "day" : "days"} left`
+                      : "Work-order last call closed"}
+                  </div>
+                )}
               </div>
               <span
                 className="rounded-full px-3 py-1 text-[12.5px] font-bold"

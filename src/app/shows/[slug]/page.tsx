@@ -1,10 +1,10 @@
-import { CalendarDays, CircleCheck, Hourglass, TriangleAlert } from "lucide-react";
+import { CalendarDays, CircleCheck, Hourglass, Megaphone, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Countdown } from "@/features/shows/Countdown";
 import { fmtDate } from "@/features/board/format";
 import { STAGE_META, LIVE_STAGES } from "@/features/board/stages";
-import { matchShow, showBySlug } from "@/lib/queue/shows";
+import { lastCallStatus, matchShow, showBySlug } from "@/lib/queue/shows";
 import type { Project } from "@/lib/queue/types";
 import { getQueueSnapshot } from "@/lib/trello/snapshot";
 
@@ -29,6 +29,11 @@ export default async function ShowPage({ params }: { params: Promise<{ slug: str
   const startIso = `${show.start}T00:00:00-04:00`;
   const endIso = `${show.end}T23:59:59-04:00`;
   const startMs = new Date(startIso).getTime();
+
+  // Last call for work orders — use real wall-clock so it stays correct even if
+  // Trello is unreachable (the countdown deadline shouldn't drift with the cache).
+  // eslint-disable-next-line react-hooks/purity
+  const lastCall = lastCallStatus(show, Date.now());
 
   const byStage: Record<string, Project[]> = { requested: [], "in-progress": [], "out-for-approval": [] };
   let closedCount = 0;
@@ -77,6 +82,41 @@ export default async function ShowPage({ params }: { params: Promise<{ slug: str
         <div className={CARD} style={CARD_STYLE}>
           <Countdown startIso={startIso} endIso={endIso} />
         </div>
+
+        {lastCall && (
+          <div
+            className={CARD}
+            style={{
+              ...CARD_STYLE,
+              background: lastCall.state === "open" ? "#FBF1DC" : "#F4E4E4",
+              borderColor: lastCall.state === "open" ? "#E7C77A" : "#E3B9B9",
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <Megaphone
+                size={18}
+                aria-hidden="true"
+                style={{ color: lastCall.state === "open" ? "#B4670C" : "#B23A3A", marginTop: 2 }}
+              />
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.09em]" style={{ color: lastCall.state === "open" ? "#B4670C" : "#B23A3A" }}>
+                  Last call for work orders
+                </p>
+                {lastCall.state === "open" ? (
+                  <p className="mt-1 text-[15px] leading-snug" style={{ color: "#3A3A34" }}>
+                    <b>{lastCall.days} {lastCall.days === 1 ? "day" : "days"} left</b> to submit — deadline{" "}
+                    <b>{fmtDate(`${lastCall.date}T00:00:00-04:00`)}</b>. After that, new requests aren&rsquo;t guaranteed for this show.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[15px] leading-snug" style={{ color: "#3A3A34" }}>
+                    Last call was <b>{fmtDate(`${lastCall.date}T00:00:00-04:00`)}</b> ({lastCall.days} {lastCall.days === 1 ? "day" : "days"} ago). New requests
+                    aren&rsquo;t guaranteed for this show — the team is finishing what&rsquo;s already in the queue.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {!snapshot ? (
           <div className={CARD} style={CARD_STYLE}>

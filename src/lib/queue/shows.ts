@@ -12,16 +12,26 @@ export interface ShowConfig {
   keywords: string[];
   /** Short tagline for the show page header. */
   tagline?: string;
+  /** Last day to submit work orders for this show (YYYY-MM-DD, Eastern). */
+  lastCall?: string;
 }
 
 export const SHOWS: ShowConfig[] = [
   {
     slug: "kentucky-state-fair",
-    name: "Kentucky State Fair",
+    name: "Kentucky State Fair & WCHS",
     start: "2026-08-20",
     end: "2026-08-30",
-    keywords: ["ksf", "kentucky state fair", "state fair"],
-    tagline: "Aug 20–30 · Kentucky Exposition Center",
+    lastCall: "2026-06-26",
+    keywords: [
+      "ksf",
+      "kentucky state fair",
+      "state fair",
+      "wchs",
+      "world's championship horse show",
+      "world championship horse show",
+    ],
+    tagline: "Aug 20–30 · Kentucky Exposition Center · with the World's Championship Horse Show",
   },
 ];
 
@@ -74,4 +84,20 @@ export function showPhase(
     };
   }
   return { phase: "after", days: 0 };
+}
+
+/**
+ * Work-order last-call status for a show. `open` before the cutoff (days = days
+ * left), `passed` after (days = days since). Null if the show has no last call.
+ */
+export function lastCallStatus(
+  show: ShowConfig,
+  nowMs: number,
+): { state: "open" | "passed"; days: number; date: string } | null {
+  if (!show.lastCall) return null;
+  const cutoff = new Date(`${show.lastCall}T23:59:59-04:00`).getTime();
+  if (nowMs <= cutoff) {
+    return { state: "open", days: Math.ceil((cutoff - nowMs) / 86_400_000), date: show.lastCall };
+  }
+  return { state: "passed", days: Math.floor((nowMs - cutoff) / 86_400_000), date: show.lastCall };
 }
