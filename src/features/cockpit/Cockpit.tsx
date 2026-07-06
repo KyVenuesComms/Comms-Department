@@ -37,6 +37,30 @@ function agoLabel(iso: string, now: number): string {
 const CARD = "rounded-2xl border bg-white p-4 sm:p-5";
 const CARD_STYLE = { borderColor: "#E4E4DF" } as const;
 const K = "text-[11px] font-bold uppercase tracking-[0.09em]";
+const ORANGE = "#E07C0E";
+
+/** Abbreviated weekday for a due date, Eastern time ("Wed."). */
+function dueWeekday(iso: string): string {
+  return `${new Date(iso).toLocaleDateString("en-US", { weekday: "short", timeZone: "America/New_York" })}.`;
+}
+
+/** Due-date cell: orange "3d · Wed." when upcoming, red "5d over" when overdue. */
+function DueCell({ dueAt, nowMs }: { dueAt: string | null; nowMs: number }) {
+  if (!dueAt) return <span className="w-20" />;
+  const diff = Math.ceil((new Date(dueAt).getTime() - nowMs) / 86_400_000);
+  if (diff < 0) {
+    return (
+      <span className="w-20 text-right text-[12px] font-bold tabular-nums" style={{ color: "#DB3B3B" }}>
+        {-diff}d over
+      </span>
+    );
+  }
+  return (
+    <span className="w-20 text-right text-[12px] font-bold tabular-nums" style={{ color: ORANGE }}>
+      {diff === 0 ? "today" : `${diff}d`} · {dueWeekday(dueAt)}
+    </span>
+  );
+}
 
 /** Red/amber/green context vs a target. */
 function ragColor(value: number, target: number): string {
@@ -339,11 +363,10 @@ export function Cockpit({
               {dueShown.map((it, i) => (
                 <div key={`${it.name}-${i}`} className="flex items-center gap-3 py-2 text-[13px]" style={i > 0 ? { borderTop: "1px solid #EDEDE8" } : undefined}>
                   <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
-                  <span className="hidden w-40 truncate text-[12px] sm:block" style={{ color: "#8A8A82" }}>{it.department}</span>
-                  <span className="w-28 text-[12px]" style={{ color: "#6A6A63" }}>{it.stage}</span>
-                  <span className="w-16 text-right font-bold tabular-nums" style={{ color: it.dueInDays <= 3 ? "#DB3B3B" : "#B4670C" }}>
-                    {it.dueInDays === 0 ? "today" : `${it.dueInDays}d`}
-                  </span>
+                  <span className="hidden w-24 truncate text-[12px] sm:block" style={{ color: "#6E56CF" }}>{it.assignee ?? "—"}</span>
+                  <span className="hidden w-36 truncate text-[12px] lg:block" style={{ color: "#8A8A82" }}>{it.department}</span>
+                  <span className="hidden w-28 text-[12px] sm:block" style={{ color: "#6A6A63" }}>{it.stage}</span>
+                  <DueCell dueAt={it.dueAt} nowMs={now} />
                 </div>
               ))}
             </div>
@@ -364,9 +387,11 @@ export function Cockpit({
             {agedShown.map((it, i) => (
               <div key={`${it.name}-${i}`} className="flex items-center gap-3 py-2 text-[13px]" style={i > 0 ? { borderTop: "1px solid #EDEDE8" } : undefined}>
                 <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
-                <span className="hidden w-40 truncate text-[12px] sm:block" style={{ color: "#8A8A82" }}>{it.department}</span>
-                <span className="w-28 text-[12px]" style={{ color: "#6A6A63" }}>{it.stage}</span>
-                <span className="w-16 text-right font-bold tabular-nums" style={{ color: it.days > 30 ? "#DB3B3B" : "#B4670C" }}>{it.days}d</span>
+                <span className="hidden w-24 truncate text-[12px] sm:block" style={{ color: "#6E56CF" }}>{it.assignee ?? "—"}</span>
+                <span className="hidden w-36 truncate text-[12px] lg:block" style={{ color: "#8A8A82" }}>{it.department}</span>
+                <span className="hidden w-28 text-[12px] sm:block" style={{ color: "#6A6A63" }}>{it.stage}</span>
+                <DueCell dueAt={it.dueAt} nowMs={now} />
+                <span className="w-14 text-right font-bold tabular-nums" style={{ color: it.days > 30 ? "#DB3B3B" : "#B4670C" }}>{it.days}d</span>
               </div>
             ))}
           </div>

@@ -108,9 +108,24 @@ export interface CockpitData {
     prevShippedWeek: number;
   };
   /** Oldest active work (by time in current stage) — the attention list. */
-  agedItems: { name: string; department: string; stage: string; days: number }[];
+  agedItems: {
+    name: string;
+    department: string;
+    stage: string;
+    days: number;
+    assignee: string | null;
+    /** Open due date (ISO), if one is set and not checked off. */
+    dueAt: string | null;
+  }[];
   /** Active work due within the next 10 days, soonest first. */
-  dueSoon: { name: string; department: string; stage: string; dueInDays: number }[];
+  dueSoon: {
+    name: string;
+    department: string;
+    stage: string;
+    dueInDays: number;
+    dueAt: string;
+    assignee: string | null;
+  }[];
   /** New requests per week, oldest → newest (same window as shippedPerWeek). */
   intakePerWeek: number[];
   overdue: number;

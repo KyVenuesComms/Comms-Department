@@ -287,6 +287,8 @@ export function computeCockpit(
         department: p.departments[0] ?? "Unassigned",
         stage: STAGE_LABEL[p.status] ?? p.status,
         days: Math.floor((nowMs - entered) / DAY),
+        assignee: p.assignee,
+        dueAt: p.dueComplete ? null : p.dueAt,
       };
     })
     .sort((a, b) => b.days - a.days)
@@ -305,6 +307,8 @@ export function computeCockpit(
       department: p.departments[0] ?? "Unassigned",
       stage: STAGE_LABEL[p.status] ?? p.status,
       dueInDays: Math.max(0, Math.ceil((new Date(p.dueAt!).getTime() - nowMs) / DAY)),
+      dueAt: p.dueAt!,
+      assignee: p.assignee,
     }));
 
   // Highest-leverage move (first applicable, in priority order).

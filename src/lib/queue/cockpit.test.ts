@@ -182,14 +182,24 @@ describe("computeCockpit", () => {
   it("lists work due in the next 10 days, soonest first", () => {
     const active = [
       proj({ name: "later", dueAt: ahead(9) }),
-      proj({ name: "soon", dueAt: ahead(2) }),
+      proj({ name: "soon", dueAt: ahead(2), assignee: "Mike Fryman" }),
       proj({ name: "too-far", dueAt: ahead(15) }),
       proj({ name: "done", dueAt: ahead(3), dueComplete: true }),
       proj({ name: "past", dueAt: ago(1) }), // overdue, not "due soon"
     ];
     const c = computeCockpit(active, [], [], [], [], NOW);
     expect(c.dueSoon.map((d) => d.name)).toEqual(["soon", "later"]);
-    expect(c.dueSoon[0].dueInDays).toBe(2);
+    expect(c.dueSoon[0]).toMatchObject({ dueInDays: 2, assignee: "Mike Fryman", dueAt: ahead(2) });
+  });
+
+  it("carries assignee and open due date on aged items", () => {
+    const req = [
+      proj({ name: "a", enteredStageAt: ago(30), assignee: "Bre", dueAt: ago(5) }),
+      proj({ name: "b", enteredStageAt: ago(20), dueAt: ahead(3), dueComplete: true }),
+    ];
+    const c = computeCockpit(req, [], [], [], [], NOW);
+    expect(c.agedItems[0]).toMatchObject({ name: "a", assignee: "Bre", dueAt: ago(5) });
+    expect(c.agedItems[1].dueAt).toBeNull(); // checked-off due dates don't show
   });
 
   it("surfaces the bottleneck as an alert", () => {
