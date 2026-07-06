@@ -175,14 +175,17 @@ function StageRows({
   counts: Record<string, number>;
 }) {
   const avgDays = new Map(stageTime.map((s) => [s.stage, s.avgDays]));
+  // A 2-day "trend" is a flat line and a zero — wait for a week of history
+  // before showing sparklines/deltas, so they carry an actual shape.
+  const MIN_SPARK_DAYS = 7;
   const series = (pick: (t: TrendPoint) => number, label: string) =>
-    trend.length >= 2 ? trend.map(pick) : [counts[label] ?? 0];
+    trend.length >= MIN_SPARK_DAYS ? trend.map(pick) : [counts[label] ?? 0];
   const rows: { label: string; color: string; values: number[] }[] = [
     { label: "In Queue", color: STAGE_FILL["In Queue"], values: series((t) => t.requested, "In Queue") },
     { label: "In Progress", color: STAGE_FILL["In Progress"], values: series((t) => t.inProgress, "In Progress") },
     { label: "Out for Approval", color: STAGE_FILL["Out for Approval"], values: series((t) => t.outForApproval, "Out for Approval") },
   ];
-  const hasTrend = trend.length >= 2;
+  const hasTrend = trend.length >= MIN_SPARK_DAYS;
   const W = 84;
   const H = 22;
   return (
