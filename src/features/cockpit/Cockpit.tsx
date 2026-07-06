@@ -38,28 +38,77 @@ const CARD = "rounded-2xl border bg-white p-4 sm:p-5";
 const CARD_STYLE = { borderColor: "#E4E4DF" } as const;
 const K = "text-[11px] font-bold uppercase tracking-[0.09em]";
 const ORANGE = "#E07C0E";
+const ET = "America/New_York";
 
-/** Abbreviated weekday for a due date, Eastern time ("Wed."). */
-function dueWeekday(iso: string): string {
-  return `${new Date(iso).toLocaleDateString("en-US", { weekday: "short", timeZone: "America/New_York" })}.`;
+const AV_PALETTE: [string, string][] = [
+  ["#EFEEFB", "#6E56CF"],
+  ["#FBF1DC", "#B4670C"],
+  ["#E7F6ED", "#12833B"],
+  ["#EAF1FD", "#1D5FCB"],
+  ["#FBEAEA", "#A32D2D"],
+];
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
-/** Due-date cell: orange "3d · Wed." when upcoming, red "5d over" when overdue. */
-function DueCell({ dueAt, nowMs }: { dueAt: string | null; nowMs: number }) {
-  if (!dueAt) return <span className="w-20" />;
-  const diff = Math.ceil((new Date(dueAt).getTime() - nowMs) / 86_400_000);
-  if (diff < 0) {
+/** Owner avatar: deterministic-colored initials chip, or a muted dash if none. */
+function Owner({ name }: { name: string | null }) {
+  if (!name) {
     return (
-      <span className="w-20 text-right text-[12px] font-bold tabular-nums" style={{ color: "#DB3B3B" }}>
-        {-diff}d over
+      <span className="inline-flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full text-[11px]" style={{ background: "#F1F1EC", color: "#A0A099" }} title="Unassigned">
+        –
       </span>
     );
   }
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const [bg, fg] = AV_PALETTE[h % AV_PALETTE.length];
   return (
-    <span className="w-20 text-right text-[12px] font-bold tabular-nums" style={{ color: ORANGE }}>
-      {diff === 0 ? "today" : `${diff}d`} · {dueWeekday(dueAt)}
+    <span className="inline-flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full text-[9.5px] font-extrabold" style={{ background: bg, color: fg }} title={name}>
+      {initials(name)}
     </span>
   );
+}
+
+const etDateKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: ET });
+
+/** "MONDAY · JUL 6" for a due date. */
+function dayHeading(iso: string): string {
+  const w = new Date(iso).toLocaleDateString("en-US", { weekday: "long", timeZone: ET });
+  const d = new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: ET });
+  return `${w} · ${d}`.toUpperCase();
+}
+
+/** "today" / "tomorrow" / "in N days" from a whole-day difference. */
+function relativeDay(iso: string, nowMs: number): string {
+  const today = new Date(nowMs).toLocaleDateString("en-CA", { timeZone: ET });
+  const a = new Date(`${today}T00:00:00-04:00`).getTime();
+  const b = new Date(`${etDateKey(iso)}T00:00:00-04:00`).getTime();
+  const diff = Math.round((b - a) / 86_400_000);
+  if (diff <= 0) return "today";
+  if (diff === 1) return "tomorrow";
+  return `in ${diff} days`;
+}
+
+type DueItem = CockpitData["dueSoon"][number];
+
+/** Group due items by their (Eastern) due date, preserving soonest-first order. */
+function groupByDay(items: DueItem[]): { key: string; items: DueItem[] }[] {
+  const groups: { key: string; items: DueItem[] }[] = [];
+  const idx = new Map<string, { key: string; items: DueItem[] }>();
+  for (const it of items) {
+    const key = etDateKey(it.dueAt);
+    let g = idx.get(key);
+    if (!g) {
+      g = { key, items: [] };
+      idx.set(key, g);
+      groups.push(g);
+    }
+    g.items.push(it);
+  }
+  return groups;
 }
 
 /** Red/amber/green context vs a target. */
@@ -259,7 +308,20 @@ export function Cockpit({
   const mixTotal = cockpit.workMix.Print + cockpit.workMix.Signage + cockpit.workMix.Digital;
   const pct = (n: number) => (mixTotal > 0 ? Math.round((n / mixTotal) * 100) : 0);
   const turnWeeks = turnaround ? `≈ ${Math.round(turnaround.quotedDays / 7)} wks` : "—";
-  const dueShown = showAllDue ? cockpit.dueSoon : cockpit.dueSoon.slice(0, 5);
+  const dueGroups = groupByDay(cockpit.dueSoon);
+  const dueCollapsed = (() => {
+    const out: typeof dueGroups = [];
+    let count = 0;
+    for (const g of dueGroups) {
+      if (out.length > 0 && count + g.items.length > 6) break;
+      out.push(g);
+      count += g.items.length;
+    }
+    return out.length ? out : dueGroups.slice(0, 1);
+  })();
+  const collapsedCount = dueCollapsed.reduce((s, g) => s + g.items.length, 0);
+  const dueGroupsShown = showAllDue ? dueGroups : dueCollapsed;
+  const dueExpandable = cockpit.dueSoon.length > collapsedCount;
   const agedShown = showAllAged ? cockpit.agedItems : cockpit.agedItems.slice(0, 5);
 
   return (
@@ -362,20 +424,30 @@ export function Cockpit({
           {cockpit.dueSoon.length === 0 ? (
             <p className="text-[13px]" style={{ color: "#A0A099" }}>Nothing due in the next 10 days.</p>
           ) : (
-            <div className="flex flex-col">
-              {dueShown.map((it, i) => (
-                <div key={`${it.name}-${i}`} className="flex items-center gap-3 py-2 text-[13px]" style={i > 0 ? { borderTop: "1px solid #EDEDE8" } : undefined}>
-                  <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
-                  <span className="hidden w-24 truncate text-[12px] sm:block" style={{ color: "#6E56CF" }}>{it.assignee ?? "—"}</span>
-                  <span className="hidden w-36 truncate text-[12px] lg:block" style={{ color: "#8A8A82" }}>{it.department}</span>
-                  <span className="hidden w-28 text-[12px] sm:block" style={{ color: "#6A6A63" }}>{it.stage}</span>
-                  <DueCell dueAt={it.dueAt} nowMs={now} />
+            <div className="flex flex-col gap-3">
+              {dueGroupsShown.map((g) => (
+                <div key={g.key}>
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-[12.5px] font-extrabold" style={{ color: ORANGE }}>{dayHeading(g.items[0].dueAt)}</span>
+                    <span className="text-[11px]" style={{ color: "#A0A099" }}>
+                      {relativeDay(g.items[0].dueAt, now)} · {g.items.length} item{g.items.length === 1 ? "" : "s"}
+                    </span>
+                    <span className="h-px flex-1" style={{ background: "#EDEDE8" }} />
+                  </div>
+                  {g.items.map((it, i) => (
+                    <div key={`${it.name}-${i}`} className="flex items-center gap-2.5 py-1.5 pl-1 text-[13px]">
+                      <Owner name={it.assignee} />
+                      <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
+                      <span className="hidden w-40 truncate text-[12px] lg:block" style={{ color: "#8A8A82" }}>{it.department}</span>
+                      <span className="w-28 text-right text-[11.5px] font-semibold" style={{ color: STAGE_FILL[it.stage] ?? "#6A6A63" }}>{it.stage}</span>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
           )}
-          {cockpit.dueSoon.length > 5 && (
-            <button onClick={() => setShowAllDue((v) => !v)} className="mt-2 flex items-center gap-1 text-[12.5px] font-bold" style={{ color: "#2563EB" }}>
+          {dueExpandable && (
+            <button onClick={() => setShowAllDue((v) => !v)} className="mt-3 flex items-center gap-1 text-[12.5px] font-bold" style={{ color: "#2563EB" }}>
               <ChevronDown size={13} style={{ transform: showAllDue ? "rotate(180deg)" : "none" }} aria-hidden="true" />
               {showAllDue ? "Show fewer" : `Show all ${cockpit.dueSoon.length}`}
             </button>
@@ -388,13 +460,12 @@ export function Cockpit({
           </p>
           <div className="flex flex-col">
             {agedShown.map((it, i) => (
-              <div key={`${it.name}-${i}`} className="flex items-center gap-3 py-2 text-[13px]" style={i > 0 ? { borderTop: "1px solid #EDEDE8" } : undefined}>
-                <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
-                <span className="hidden w-24 truncate text-[12px] sm:block" style={{ color: "#6E56CF" }}>{it.assignee ?? "—"}</span>
-                <span className="hidden w-36 truncate text-[12px] lg:block" style={{ color: "#8A8A82" }}>{it.department}</span>
-                <span className="hidden w-28 text-[12px] sm:block" style={{ color: "#6A6A63" }}>{it.stage}</span>
-                <DueCell dueAt={it.dueAt} nowMs={now} />
+              <div key={`${it.name}-${i}`} className="flex items-center gap-2.5 py-2 text-[13px]" style={i > 0 ? { borderTop: "1px solid #EDEDE8" } : undefined}>
                 <span className="w-14 text-right font-bold tabular-nums" style={{ color: it.days > 30 ? "#DB3B3B" : "#B4670C" }}>{it.days}d</span>
+                <Owner name={it.assignee} />
+                <span className="flex-1 truncate font-semibold" style={{ color: "#131311" }}>{it.name}</span>
+                <span className="hidden w-40 truncate text-[12px] lg:block" style={{ color: "#8A8A82" }}>{it.department}</span>
+                <span className="w-28 text-right text-[11.5px] font-semibold" style={{ color: STAGE_FILL[it.stage] ?? "#6A6A63" }}>{it.stage}</span>
               </div>
             ))}
           </div>
