@@ -140,51 +140,63 @@ function WeeklyFlow({
   );
 }
 
-/** Per-stage trend small-multiples — replaces the CFD with a direct read. */
-function StageTrends({ trend }: { trend: TrendPoint[] }) {
-  if (trend.length < 2) {
-    return (
-      <p className="text-[12.5px]" style={{ color: "#A0A099" }}>
-        Collecting history — {trend.length} day{trend.length === 1 ? "" : "s"} banked. Trends appear at 2.
-      </p>
-    );
-  }
+/** Per-stage rows for the backlog hero: count, trend, and ~days per stage. */
+function StageRows({
+  trend,
+  stageTime,
+  counts,
+}: {
+  trend: TrendPoint[];
+  stageTime: CockpitData["stageTime"];
+  counts: Record<string, number>;
+}) {
+  const avgDays = new Map(stageTime.map((s) => [s.stage, s.avgDays]));
+  const series = (pick: (t: TrendPoint) => number, label: string) =>
+    trend.length >= 2 ? trend.map(pick) : [counts[label] ?? 0];
   const rows: { label: string; color: string; values: number[] }[] = [
-    { label: "Active total", color: "#131311", values: trend.map((t) => t.active) },
-    { label: "In Queue", color: STAGE_FILL["In Queue"], values: trend.map((t) => t.requested) },
-    { label: "In Progress", color: STAGE_FILL["In Progress"], values: trend.map((t) => t.inProgress) },
-    { label: "Out for Approval", color: STAGE_FILL["Out for Approval"], values: trend.map((t) => t.outForApproval) },
+    { label: "In Queue", color: STAGE_FILL["In Queue"], values: series((t) => t.requested, "In Queue") },
+    { label: "In Progress", color: STAGE_FILL["In Progress"], values: series((t) => t.inProgress, "In Progress") },
+    { label: "Out for Approval", color: STAGE_FILL["Out for Approval"], values: series((t) => t.outForApproval, "Out for Approval") },
   ];
-  const W = 110;
-  const H = 26;
+  const hasTrend = trend.length >= 2;
+  const W = 84;
+  const H = 22;
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2">
       {rows.map((r) => {
         const first = r.values[0];
-        const last = r.values[r.values.length - 1];
+        const last = counts[r.label] ?? r.values[r.values.length - 1];
         const delta = last - first;
         const min = Math.min(...r.values);
-        const max = Math.max(...r.values);
-        const span = Math.max(1, max - min);
-        const pts = r.values
-          .map((v, i) => `${(i / (r.values.length - 1)) * W},${H - ((v - min) / span) * (H - 4) - 2}`)
-          .join(" ");
+        const span = Math.max(1, Math.max(...r.values) - min);
+        const pts = hasTrend
+          ? r.values.map((v, i) => `${(i / (r.values.length - 1)) * W},${H - ((v - min) / span) * (H - 4) - 2}`).join(" ")
+          : "";
+        const days = avgDays.get(r.label);
         return (
-          <div key={r.label} className="flex items-center gap-3">
-            <span className="w-32 text-[12.5px]" style={{ color: "#3A3A34" }}>{r.label}</span>
-            <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="flex-none" aria-hidden="true">
-              <polyline points={pts} fill="none" stroke={r.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-[13px] tabular-nums" style={{ color: "#6A6A63" }}>
-              {first} → <b style={{ color: "#131311" }}>{last}</b>
+          <div key={r.label} className="flex items-center justify-end gap-2.5 text-[12.5px]">
+            <span className="flex items-center gap-1.5" style={{ color: "#3A3A34" }}>
+              <span className="h-2 w-2 rounded-[3px]" style={{ background: r.color }} aria-hidden="true" />
+              {r.label}
             </span>
-            <span className="text-[12px] font-bold tabular-nums" style={{ color: delta > 0 ? "#B4670C" : delta < 0 ? "#12833B" : "#A0A099" }}>
-              {delta > 0 ? "+" : ""}{delta}
-            </span>
+            {hasTrend && (
+              <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="flex-none" aria-hidden="true">
+                <polyline points={pts} fill="none" stroke={r.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            <b className="w-8 text-right text-[15px] tabular-nums" style={{ color: "#131311" }}>{last}</b>
+            {hasTrend && (
+              <span className="w-9 text-[11.5px] font-bold tabular-nums" style={{ color: delta > 0 ? "#B4670C" : delta < 0 ? "#12833B" : "#A0A099" }}>
+                {delta > 0 ? "+" : ""}{delta}
+              </span>
+            )}
+            <span className="w-14 text-[11.5px]" style={{ color: "#8A8A82" }}>{days !== undefined ? `~${Math.round(days)}d each` : ""}</span>
           </div>
         );
       })}
-      <p className="text-[11px]" style={{ color: "#A0A099" }}>since {trend[0].date} — a growing stage is where work is piling up</p>
+      <p className="text-right text-[10.5px]" style={{ color: "#A0A099" }}>
+        {hasTrend ? `trend since ${trend[0].date} · ` : ""}~days = typical time in that stage
+      </p>
     </div>
   );
 }
@@ -270,12 +282,23 @@ export function Cockpit({
           </div>
         )}
 
-        {/* hero: backlog */}
+        {/* hero: backlog + per-stage breakdown */}
         <div className={CARD} style={CARD_STYLE}>
-          <p className={K} style={{ color: "#8A8A82" }}>Active backlog</p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-[40px] font-extrabold leading-none tabular-nums" style={{ color: "#131311" }}>{active}</span>
-            <span className="text-[14px]" style={{ color: "#6A6A63" }}>active projects</span>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className={K} style={{ color: "#8A8A82" }}>Active backlog</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-[40px] font-extrabold leading-none tabular-nums" style={{ color: "#131311" }}>{active}</span>
+                <span className="text-[14px]" style={{ color: "#6A6A63" }}>active projects</span>
+              </div>
+            </div>
+            <StageRows
+              trend={trend}
+              stageTime={cockpit.stageTime}
+              counts={Object.fromEntries(
+                cockpit.agingBuckets.map((s) => [s.stage, s.buckets[0] + s.buckets[1] + s.buckets[2] + s.buckets[3]]),
+              )}
+            />
           </div>
         </div>
 
@@ -302,23 +325,6 @@ export function Cockpit({
               prevShipped={cockpit.netFlow.prevShippedWeek}
             />
           </div>
-        </div>
-
-        {/* stage trends (replaces the CFD) */}
-        <div className={CARD} style={CARD_STYLE}>
-          <p className={`${K} mb-3`} style={{ color: "#8A8A82" }}>Stage trends — where work is piling up</p>
-          <StageTrends trend={trend} />
-          {cockpit.stageTime.length > 0 && (
-            <p className="mt-2 text-[12px]" style={{ color: "#6A6A63" }}>
-              Where time goes (recent moves):{" "}
-              {cockpit.stageTime.map((s, i) => (
-                <span key={s.stage}>
-                  {i > 0 && " · "}
-                  <b style={{ color: STAGE_FILL[s.stage] }}>{s.stage}</b> ~{s.avgDays}d
-                </span>
-              ))}
-            </p>
-          )}
         </div>
 
         {/* needs attention: due soon + longest in stage */}
