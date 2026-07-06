@@ -74,12 +74,23 @@ function Bar({ label, value, max, sub, color }: { label: string; value: number; 
 }
 
 /** Unified weekly flow: intake vs shipped per week; click a week for detail. */
-function WeeklyFlow({ intake, shipped }: { intake: number[]; shipped: number[] }) {
+function WeeklyFlow({
+  intake,
+  shipped,
+  prevIntake,
+  prevShipped,
+}: {
+  intake: number[];
+  shipped: number[];
+  prevIntake: number;
+  prevShipped: number;
+}) {
   const weeks = intake.length;
   const [sel, setSel] = useState(weeks - 1);
   const max = Math.max(1, ...intake, ...shipped);
   const label = (i: number) => (i === weeks - 1 ? "this wk" : `${weeks - 1 - i}w ago`);
   const net = intake[sel] - shipped[sel];
+  const isThisWeek = sel === weeks - 1;
   return (
     <div>
       <div className="flex items-end gap-2" style={{ height: 64 }}>
@@ -107,11 +118,24 @@ function WeeklyFlow({ intake, shipped }: { intake: number[]; shipped: number[] }
         ))}
       </div>
       <p className="mt-2 text-[12.5px]" style={{ color: "#3A3A34" }}>
-        <b style={{ color: "#131311" }}>{label(sel)}</b>:{" "}
-        <b style={{ color: "#1D5FCB" }}>{intake[sel]} in</b> ·{" "}
-        <b style={{ color: "#12833B" }}>{shipped[sel]} out</b> ·{" "}
-        <b style={{ color: net > 0 ? "#B4670C" : "#12833B" }}>net {net >= 0 ? "+" : ""}{net}</b>
+        <b style={{ color: "#131311" }}>{isThisWeek ? "This week" : label(sel)}</b>:{" "}
+        <b style={{ color: "#1D5FCB" }}>+{intake[sel]} in</b> ·{" "}
+        <b style={{ color: "#12833B" }}>−{shipped[sel]} out</b> ·{" "}
+        <b style={{ color: net > 0 ? "#B4670C" : "#12833B" }}>
+          net {net >= 0 ? "+" : ""}{net}
+          {isThisWeek && (net > 0 ? " · backlog growing" : " · holding/shrinking")}
+        </b>
       </p>
+      {isThisWeek && (
+        <div className="mt-1 flex gap-3">
+          <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: "#8A8A82" }}>
+            in: <Delta now={intake[sel]} prev={prevIntake} />
+          </span>
+          <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: "#8A8A82" }}>
+            out: <Delta now={shipped[sel]} prev={prevShipped} />
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -189,7 +213,6 @@ export function Cockpit({
   }, [router]);
 
   const active = cockpit.byDepartment.reduce((s, d) => s + d.active, 0);
-  const { intakeWeek, shippedWeek, net } = cockpit.netFlow;
   const depts = cockpit.byDepartment.slice(0, 8);
   const deptMax = depts[0]?.active ?? 1;
   const team = cockpit.byAssignee.filter((a) => a.name !== "Unassigned").slice(0, 8);
@@ -247,34 +270,12 @@ export function Cockpit({
           </div>
         )}
 
-        {/* hero: backlog & net flow */}
+        {/* hero: backlog */}
         <div className={CARD} style={CARD_STYLE}>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className={K} style={{ color: "#8A8A82" }}>Active backlog</p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-[40px] font-extrabold leading-none tabular-nums" style={{ color: "#131311" }}>{active}</span>
-                <span className="text-[14px]" style={{ color: "#6A6A63" }}>active projects</span>
-              </div>
-            </div>
-            <div className="text-right text-[13.5px]" style={{ color: "#3A3A34" }}>
-              <div>
-                This week:{" "}
-                <b style={{ color: "#1D5FCB" }}>+{intakeWeek} in</b> ·{" "}
-                <b style={{ color: "#12833B" }}>−{shippedWeek} out</b> ·{" "}
-                <b style={{ color: net > 0 ? "#B4670C" : "#12833B" }}>
-                  net {net >= 0 ? "+" : ""}{net} {net > 0 ? "· backlog growing" : "· holding/shrinking"}
-                </b>
-              </div>
-              <div className="mt-1 flex justify-end gap-3">
-                <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: "#8A8A82" }}>
-                  in: <Delta now={intakeWeek} prev={cockpit.netFlow.prevIntakeWeek} />
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: "#8A8A82" }}>
-                  out: <Delta now={shippedWeek} prev={cockpit.netFlow.prevShippedWeek} />
-                </span>
-              </div>
-            </div>
+          <p className={K} style={{ color: "#8A8A82" }}>Active backlog</p>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-[40px] font-extrabold leading-none tabular-nums" style={{ color: "#131311" }}>{active}</span>
+            <span className="text-[14px]" style={{ color: "#6A6A63" }}>active projects</span>
           </div>
         </div>
 
@@ -294,7 +295,12 @@ export function Cockpit({
             <p className={`${K} mb-1`} style={{ color: "#8A8A82" }}>
               Weekly flow — <span style={{ color: "#2563EB" }}>in</span> vs <span style={{ color: "#12833B" }}>out</span> <span style={{ color: "#A0A099" }}>(click a week)</span>
             </p>
-            <WeeklyFlow intake={cockpit.intakePerWeek} shipped={cockpit.shippedPerWeek} />
+            <WeeklyFlow
+              intake={cockpit.intakePerWeek}
+              shipped={cockpit.shippedPerWeek}
+              prevIntake={cockpit.netFlow.prevIntakeWeek}
+              prevShipped={cockpit.netFlow.prevShippedWeek}
+            />
           </div>
         </div>
 
