@@ -4,8 +4,11 @@
 import "server-only";
 import { REFRESH_MS } from "../queue/config";
 import { setTrelloMapping, sortProjects, toProject } from "../queue/map";
+import { setDepartments } from "../queue/departments";
 import { getShows } from "../queue/shows-store";
 import { getTrelloMapping } from "../queue/mapping-store";
+import { getTargets } from "../queue/targets-store";
+import { getDepartments } from "../queue/departments-store";
 import { computeCockpit } from "../queue/cockpit";
 import { perDepartment, recentlyCompleted, stageEntryDates, turnaround } from "../queue/metrics";
 import { workloadContext } from "../queue/workload";
@@ -45,8 +48,14 @@ async function build(): Promise<QueueSnapshot> {
 
   // Hydrate the editable Trello mapping before mapping any cards — the metrics
   // + cockpit math downstream read it synchronously via statusForList().
-  const [shows, mapping] = await Promise.all([getShows(), getTrelloMapping()]);
+  const [shows, mapping, targets, departments] = await Promise.all([
+    getShows(),
+    getTrelloMapping(),
+    getTargets(),
+    getDepartments(),
+  ]);
   setTrelloMapping(mapping);
+  setDepartments(departments);
   const projects = cards.map((c) => toProject(c, shows));
   const enteredAt = stageEntryDates(moves);
   for (const p of projects) p.enteredStageAt = enteredAt.get(p.id) ?? null;
@@ -71,6 +80,7 @@ async function build(): Promise<QueueSnapshot> {
     nowMs,
     metrics.turnaround?.quotedDays ?? null,
     archivedCreatedMs,
+    targets,
   );
   const unassigned = cockpit.byDepartment.find((d) => d.name === "Unassigned")?.active ?? 0;
   console.info(

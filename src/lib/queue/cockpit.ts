@@ -4,7 +4,7 @@
 import { TARGETS } from "./config";
 import { cardCreatedAt, statusForList } from "./map";
 import { seasonalOutlook } from "./seasonal";
-import type { CockpitData, Move, Project } from "./types";
+import type { CockpitData, Move, Project, Targets } from "./types";
 
 const DAY = 86_400_000;
 const WEEK = 7 * DAY;
@@ -31,6 +31,7 @@ export function computeCockpit(
   nowMs: number,
   turnaroundQuotedDays: number | null = null,
   archivedCreatedMs: number[] = [],
+  targets: Targets = TARGETS,
 ): CockpitData {
   const active = [...requested, ...inProgress, ...outForApproval];
 
@@ -329,16 +330,16 @@ export function computeCockpit(
 
   // Threshold alerts vs TARGETS — plain English, ready for display or webhook.
   const alerts: string[] = [];
-  if (overdue > TARGETS.overdue) {
-    alerts.push(`Overdue is ${overdue} — target is under ${TARGETS.overdue}.`);
+  if (overdue > targets.overdue) {
+    alerts.push(`Overdue is ${overdue} — target is under ${targets.overdue}.`);
   }
   if (bottleneck) {
     alerts.push(`Bottleneck: ${bottleneck.stage} — ${bottleneck.reason}.`);
   }
-  if (turnaroundQuotedDays !== null && turnaroundQuotedDays > TARGETS.turnaroundDays) {
-    alerts.push(`Turnaround is ~${turnaroundQuotedDays} days — target is ${TARGETS.turnaroundDays}.`);
+  if (turnaroundQuotedDays !== null && turnaroundQuotedDays > targets.turnaroundDays) {
+    alerts.push(`Turnaround is ~${turnaroundQuotedDays} days — target is ${targets.turnaroundDays}.`);
   }
-  if (weeklyNet > TARGETS.weeklyNetGrowth) {
+  if (weeklyNet > targets.weeklyNetGrowth) {
     alerts.push(`Backlog growing ~${weeklyNet}/week — on pace for ${forecast.inFourWeeks} active in 4 weeks.`);
   }
   if (seasonal && seasonal.pctChange >= 25) {
@@ -369,5 +370,6 @@ export function computeCockpit(
     workMix,
     bottleneck,
     leverage,
+    targets,
   };
 }

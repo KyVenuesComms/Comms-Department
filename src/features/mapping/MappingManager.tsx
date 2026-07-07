@@ -47,8 +47,8 @@ export function MappingManager({
       <div className="mx-auto flex max-w-[820px] flex-col gap-3">
         <header>
           <div className={K} style={{ color: "#2563EB" }}>
-            <Link href="/manager" className="no-underline" style={{ color: "#2563EB" }}>
-              ← Leadership cockpit
+            <Link href="/manager/settings" className="no-underline" style={{ color: "#2563EB" }}>
+              ← Manage
             </Link>
           </div>
           <h1 className="mt-1 text-[28px] font-extrabold tracking-[-0.015em]" style={{ color: "#131311" }}>

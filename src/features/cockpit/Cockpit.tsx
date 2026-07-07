@@ -3,7 +3,6 @@
 import {
   BellRing,
   CalendarClock,
-  CalendarCog,
   ChevronDown,
   Download,
   Hourglass,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TARGETS } from "@/lib/queue/config";
 import type { CockpitData, QueueMetrics, TrendPoint } from "@/lib/queue/types";
 
 const UI_REFRESH_MS = 5 * 60 * 1000;
@@ -337,18 +335,11 @@ export function Cockpit({
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="/manager/mapping"
+              href="/manager/settings"
               className="inline-flex items-center gap-1.5 rounded-[9px] border bg-white px-3 py-1.5 text-[12.5px] font-bold no-underline transition-colors hover:bg-[#F1F1EC]"
               style={{ borderColor: "#E4E4DE", color: "#3A3A34" }}
             >
-              <SlidersHorizontal size={13} aria-hidden="true" /> Mapping
-            </a>
-            <a
-              href="/manager/shows"
-              className="inline-flex items-center gap-1.5 rounded-[9px] border bg-white px-3 py-1.5 text-[12.5px] font-bold no-underline transition-colors hover:bg-[#F1F1EC]"
-              style={{ borderColor: "#E4E4DE", color: "#3A3A34" }}
-            >
-              <CalendarCog size={13} aria-hidden="true" /> Manage shows
+              <SlidersHorizontal size={13} aria-hidden="true" /> Manage
             </a>
             <a
               href="/api/manager/export"
@@ -411,13 +402,13 @@ export function Cockpit({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className={CARD} style={CARD_STYLE}>
             <p className={K} style={{ color: "#8A8A82" }}>Overdue</p>
-            <div className="text-[30px] font-extrabold tabular-nums" style={{ color: ragColor(cockpit.overdue, TARGETS.overdue) }}>{cockpit.overdue}</div>
-            <p className="text-[12px]" style={{ color: "#6A6A63" }}>target &lt;{TARGETS.overdue} · {cockpit.dueThisWeek} due this wk</p>
+            <div className="text-[30px] font-extrabold tabular-nums" style={{ color: ragColor(cockpit.overdue, cockpit.targets.overdue) }}>{cockpit.overdue}</div>
+            <p className="text-[12px]" style={{ color: "#6A6A63" }}>target &lt;{cockpit.targets.overdue} · {cockpit.dueThisWeek} due this wk</p>
           </div>
           <div className={CARD} style={CARD_STYLE}>
             <p className={K} style={{ color: "#8A8A82" }}>Turnaround</p>
-            <div className="text-[30px] font-extrabold" style={{ color: turnaround ? ragColor(turnaround.quotedDays, TARGETS.turnaroundDays) : "#1D5FCB" }}>{turnWeeks}</div>
-            <p className="text-[12px]" style={{ color: "#6A6A63" }}>target ≤{Math.round(TARGETS.turnaroundDays / 7)} wks · request → approval</p>
+            <div className="text-[30px] font-extrabold" style={{ color: turnaround ? ragColor(turnaround.quotedDays, cockpit.targets.turnaroundDays) : "#1D5FCB" }}>{turnWeeks}</div>
+            <p className="text-[12px]" style={{ color: "#6A6A63" }}>target ≤{Math.round(cockpit.targets.turnaroundDays / 7)} wks · request → approval</p>
           </div>
           <div className={`${CARD} lg:col-span-2`} style={CARD_STYLE}>
             <p className={`${K} mb-1`} style={{ color: "#8A8A82" }}>

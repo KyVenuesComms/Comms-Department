@@ -4,7 +4,7 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import type { QueueSnapshot } from "../trello/snapshot-types";
-import type { TrendPoint, TrelloMapping } from "../queue/types";
+import type { DepartmentConfig, TrendPoint, TrelloMapping, Targets } from "../queue/types";
 import type { ShowConfig } from "../queue/shows";
 
 const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
@@ -108,6 +108,40 @@ export async function writeMappingRaw(mapping: TrelloMapping): Promise<void> {
     return;
   }
   await redis.set(MAPPING_KEY, mapping);
+}
+
+// Leadership targets, editable via /manager. `null` = never written.
+const TARGETS_KEY = "wos:targets";
+let memTargets: Targets | null = null;
+
+export async function readTargetsRaw(): Promise<Targets | null> {
+  if (!redis) return memTargets;
+  return (await redis.get<Targets>(TARGETS_KEY)) ?? null;
+}
+
+export async function writeTargetsRaw(targets: Targets): Promise<void> {
+  if (!redis) {
+    memTargets = targets;
+    return;
+  }
+  await redis.set(TARGETS_KEY, targets);
+}
+
+// Canonical departments + aliases, editable via /manager. `null` = never written.
+const DEPTS_KEY = "wos:departments";
+let memDepts: DepartmentConfig[] | null = null;
+
+export async function readDepartmentsRaw(): Promise<DepartmentConfig[] | null> {
+  if (!redis) return memDepts;
+  return (await redis.get<DepartmentConfig[]>(DEPTS_KEY)) ?? null;
+}
+
+export async function writeDepartmentsRaw(depts: DepartmentConfig[]): Promise<void> {
+  if (!redis) {
+    memDepts = depts;
+    return;
+  }
+  await redis.set(DEPTS_KEY, depts);
 }
 
 // Last alert set we notified about (dedupes webhook pings across cron runs).

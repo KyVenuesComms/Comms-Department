@@ -25,6 +25,23 @@ export interface RawLabel {
 /** The stages a Trello list can map to (everything else is hidden). */
 export type ListStatus = Exclude<Status, "hidden">;
 
+/** Leadership thresholds the cockpit grades against and alerts on. Editable in KV. */
+export interface Targets {
+  /** Quoted turnaround should stay at or under this many days. */
+  turnaroundDays: number;
+  /** Overdue active projects should stay under this. */
+  overdue: number;
+  /** Alert when the backlog grows faster than this per week (avg). */
+  weeklyNetGrowth: number;
+}
+
+/** One canonical department + the free-text aliases that normalize to it. Editable in KV. */
+export interface DepartmentConfig {
+  name: string;
+  /** Extra lowercase strings in the card's "Department:" field that map here. */
+  aliases: string[];
+}
+
 /** Editable rules for how Trello converts onto the board. Stored in KV. */
 export interface TrelloMapping {
   /** Each Trello list → the stage it becomes. Lists not here are hidden. */
@@ -183,8 +200,10 @@ export interface CockpitData {
   agingBuckets: { stage: string; buckets: [number, number, number, number] }[];
   /** Avg days spent per stage, from recently observed stage transitions. */
   stageTime: { stage: string; avgDays: number; sample: number }[];
-  /** Triggered threshold alerts (vs TARGETS), plain English. */
+  /** Triggered threshold alerts (vs targets), plain English. */
   alerts: string[];
+  /** The thresholds these numbers were graded against (for the UI's RAG + labels). */
+  targets: Targets;
 }
 
 /** Computed, board-wide numbers. Built once per refresh, never in the UI. */

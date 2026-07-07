@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { matchDepartment, parseDepartment } from "./departments";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  defaultDepartments,
+  departmentNames,
+  matchDepartment,
+  parseDepartment,
+  setDepartments,
+  validateDepartments,
+} from "./departments";
+
+// Any test that swaps the department list restores the default afterward so
+// module state doesn't leak between tests.
+afterEach(() => setDepartments(defaultDepartments()));
 
 describe("matchDepartment", () => {
   it("matches exact canonical names", () => {
@@ -36,5 +47,37 @@ describe("parseDepartment", () => {
   it("returns null when there's no department", () => {
     expect(parseDepartment("no fields here")).toBeNull();
     expect(parseDepartment(null)).toBeNull();
+  });
+});
+
+describe("setDepartments + aliases", () => {
+  it("matches a custom alias to its canonical department", () => {
+    setDepartments([
+      { name: "Communications", aliases: ["comms team", "pr"] },
+      { name: "Finance", aliases: [] },
+    ]);
+    expect(matchDepartment("PR")).toBe("Communications");
+    expect(matchDepartment("comms team")).toBe("Communications");
+    expect(departmentNames()).toEqual(["Communications", "Finance"]);
+  });
+
+  it("still falls back to prefix matching against names", () => {
+    setDepartments([{ name: "Expositions Division", aliases: [] }]);
+    expect(matchDepartment("expositions")).toBe("Expositions Division");
+  });
+});
+
+describe("validateDepartments", () => {
+  it("passes the default list", () => {
+    expect(validateDepartments(defaultDepartments())).toEqual([]);
+  });
+  it("flags a blank name and a duplicate", () => {
+    const errs = validateDepartments([
+      { name: "Finance", aliases: [] },
+      { name: "finance", aliases: [] },
+      { name: "  ", aliases: [] },
+    ]);
+    expect(errs.some((e) => /more than once/.test(e))).toBe(true);
+    expect(errs.some((e) => /needs a name/.test(e))).toBe(true);
   });
 });

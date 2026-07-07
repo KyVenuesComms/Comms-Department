@@ -227,4 +227,16 @@ describe("computeCockpit", () => {
     const c = computeCockpit([proj({})], [], [], [], [], NOW, 21);
     expect(c.alerts).toEqual([]);
   });
+
+  it("grades against custom targets and echoes them back", () => {
+    const overdueLots = Array.from({ length: 5 }, () => proj({ dueAt: ago(3) }));
+    const c = computeCockpit(overdueLots, [], [], [], [], NOW, 12, [], {
+      turnaroundDays: 10,
+      overdue: 3,
+      weeklyNetGrowth: 1,
+    });
+    expect(c.targets).toEqual({ turnaroundDays: 10, overdue: 3, weeklyNetGrowth: 1 });
+    expect(c.alerts.some((a) => a.includes("Overdue is 5"))).toBe(true); // 5 > 3
+    expect(c.alerts.some((a) => a.includes("Turnaround is ~12"))).toBe(true); // 12 > 10
+  });
 });

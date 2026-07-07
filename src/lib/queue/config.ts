@@ -1,6 +1,6 @@
 // The single source of truth for how Trello maps onto the board.
 // Change a Trello list name here (one place) and the whole app follows.
-import type { Flag, ProjectType, Status } from "./types";
+import type { Flag, ProjectType, Status, Targets } from "./types";
 
 /**
  * Trello list names grouped by the status a department sees.
@@ -58,7 +58,7 @@ export const RECENTLY_COMPLETED_MAX = 12;
 // --- Workload trend (needs KV history to light up) ---
 
 // --- Leadership targets (the "vs target" context on the cockpit; tune freely) ---
-export const TARGETS = {
+export const TARGETS: Targets = {
   /** Quoted turnaround should stay at or under this many days. */
   turnaroundDays: 28,
   /** Overdue active projects should stay under this. */
@@ -66,6 +66,20 @@ export const TARGETS = {
   /** Alert when the backlog is growing faster than this per week (avg). */
   weeklyNetGrowth: 5,
 };
+
+/** Plain-English problems with a set of targets — empty means good to save. */
+export function validateTargets(t: Targets): string[] {
+  const errors: string[] = [];
+  const check = (v: number, label: string) => {
+    if (!Number.isFinite(v) || !Number.isInteger(v) || v <= 0) {
+      errors.push(`${label} must be a whole number greater than zero.`);
+    }
+  };
+  check(t.turnaroundDays, "Turnaround target");
+  check(t.overdue, "Overdue target");
+  check(t.weeklyNetGrowth, "Weekly net-growth target");
+  return errors;
+}
 
 /** Compare today's load against the median of the prior this-many days. */
 export const TREND_WINDOW_DAYS = 30;
