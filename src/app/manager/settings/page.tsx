@@ -1,4 +1,4 @@
-import { Building2, CalendarCog, ChevronRight, SlidersHorizontal, Target } from "lucide-react";
+import { Building2, CalendarCog, ChevronRight, Gauge, SlidersHorizontal, Target } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { ManagerLogin } from "@/features/cockpit/ManagerLogin";
@@ -30,6 +30,12 @@ const TOOLS = [
     Icon: Building2,
     title: "Departments",
     body: "The canonical department list and the aliases that normalize card text.",
+  },
+  {
+    href: "/manager/tuning",
+    Icon: Gauge,
+    title: "Refresh & tuning",
+    body: "Refresh cadence and the windows behind turnaround, recent work, and workload.",
   },
 ];
 

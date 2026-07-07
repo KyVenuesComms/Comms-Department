@@ -1,15 +1,8 @@
 // Pure metric computations. No I/O — takes projects + move history, returns
 // numbers. Add a new metric here (plus a test); the fetch and UI don't change.
-import {
-  DEPARTMENT_LABELS,
-  RECENTLY_COMPLETED_DAYS,
-  RECENTLY_COMPLETED_MAX,
-  TURNAROUND_BUFFER_DAYS,
-  TURNAROUND_MIN_SAMPLES,
-  TURNAROUND_WINDOW_DAYS,
-} from "./config";
+import { DEPARTMENT_LABELS, defaultTuning } from "./config";
 import { cardCreatedAt, statusForList } from "./map";
-import type { Move, Project, QueueMetrics } from "./types";
+import type { Move, Project, QueueMetrics, Tuning } from "./types";
 
 const DAY_MS = 86_400_000;
 
@@ -38,8 +31,9 @@ export function stageEntryDates(moves: Move[]): Map<string, string> {
 export function turnaround(
   moves: Move[],
   nowMs: number,
+  tuning: Tuning = defaultTuning(),
 ): QueueMetrics["turnaround"] {
-  const cutoff = nowMs - TURNAROUND_WINDOW_DAYS * DAY_MS;
+  const cutoff = nowMs - tuning.turnaroundWindowDays * DAY_MS;
   const samples = moves
     .filter(
       (m) =>
@@ -53,11 +47,11 @@ export function turnaround(
     )
     .filter((days) => days >= 0 && days < 365);
 
-  if (samples.length < TURNAROUND_MIN_SAMPLES) return null;
+  if (samples.length < tuning.turnaroundMinSamples) return null;
   const med = median(samples);
   return {
     medianDays: Math.round(med),
-    quotedDays: Math.ceil(med) + TURNAROUND_BUFFER_DAYS,
+    quotedDays: Math.ceil(med) + tuning.turnaroundBufferDays,
     sampleSize: samples.length,
   };
 }
@@ -66,8 +60,9 @@ export function turnaround(
 export function recentlyCompleted(
   moves: Move[],
   nowMs: number,
+  tuning: Tuning = defaultTuning(),
 ): QueueMetrics["recentlyCompleted"] {
-  const cutoff = nowMs - RECENTLY_COMPLETED_DAYS * DAY_MS;
+  const cutoff = nowMs - tuning.recentlyCompletedDays * DAY_MS;
   const seen = new Set<string>();
   return moves
     .filter(
@@ -77,7 +72,7 @@ export function recentlyCompleted(
     )
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     .filter((m) => (seen.has(m.cardId) ? false : seen.add(m.cardId)))
-    .slice(0, RECENTLY_COMPLETED_MAX)
+    .slice(0, tuning.recentlyCompletedMax)
     .map((m) => ({ id: m.cardId, name: m.cardName, at: m.at }));
 }
 

@@ -9,6 +9,7 @@ import { getShows } from "../queue/shows-store";
 import { getTrelloMapping } from "../queue/mapping-store";
 import { getTargets } from "../queue/targets-store";
 import { getDepartments } from "../queue/departments-store";
+import { getTuning } from "../queue/tuning-store";
 import { computeCockpit } from "../queue/cockpit";
 import { perDepartment, recentlyCompleted, stageEntryDates, turnaround } from "../queue/metrics";
 import { workloadContext } from "../queue/workload";
@@ -48,11 +49,12 @@ async function build(): Promise<QueueSnapshot> {
 
   // Hydrate the editable Trello mapping before mapping any cards — the metrics
   // + cockpit math downstream read it synchronously via statusForList().
-  const [shows, mapping, targets, departments] = await Promise.all([
+  const [shows, mapping, targets, departments, tuning] = await Promise.all([
     getShows(),
     getTrelloMapping(),
     getTargets(),
     getDepartments(),
+    getTuning(),
   ]);
   setTrelloMapping(mapping);
   setDepartments(departments);
@@ -67,8 +69,8 @@ async function build(): Promise<QueueSnapshot> {
 
   const nowMs = Date.now();
   const metrics: QueueMetrics = {
-    turnaround: turnaround(moves, nowMs),
-    recentlyCompleted: recentlyCompleted(moves, nowMs),
+    turnaround: turnaround(moves, nowMs, tuning),
+    recentlyCompleted: recentlyCompleted(moves, nowMs, tuning),
     perDepartment: perDepartment(requested, inProgress, outForApproval),
   };
   const cockpit = computeCockpit(
@@ -103,9 +105,9 @@ async function build(): Promise<QueueSnapshot> {
 // In-memory path (no KV): throttle + last-good fallback so the screen never blanks.
 let memLastGood: QueueSnapshot | null = null;
 let memAt = 0;
-async function getOrBuildMemory(): Promise<QueueSnapshot> {
+async function getOrBuildMemory(refreshMs: number): Promise<QueueSnapshot> {
   const now = Date.now();
-  if (memLastGood && now - memAt < REFRESH_MS) return memLastGood;
+  if (memLastGood && now - memAt < refreshMs) return memLastGood;
   try {
     const snap = await build();
     memLastGood = snap;
@@ -125,12 +127,14 @@ async function getOrBuildMemory(): Promise<QueueSnapshot> {
  * refresh fails, so it never blanks.
  */
 export async function getQueueSnapshot(): Promise<QueueSnapshot> {
+  const tuning = await getTuning().catch(() => null);
+  const refreshWindow = tuning ? tuning.refreshMinutes * 60_000 : REFRESH_MS;
   if (storeMode() === "kv") {
     const stored = await readSnapshot().catch((e) => {
       console.warn("[queue] store read failed:", e);
       return null;
     });
-    if (stored && Date.now() - Date.parse(stored.updatedAt) < REFRESH_MS) {
+    if (stored && Date.now() - Date.parse(stored.updatedAt) < refreshWindow) {
       return stored;
     }
     try {
@@ -140,7 +144,7 @@ export async function getQueueSnapshot(): Promise<QueueSnapshot> {
       throw err;
     }
   }
-  return getOrBuildMemory();
+  return getOrBuildMemory(refreshWindow);
 }
 
 /** What the cron runs: rebuild, persist, bank a trend point, record the sync. */
@@ -185,8 +189,8 @@ export async function refreshQueue(): Promise<QueueSnapshot> {
 
 /** Today's load vs a typical recent day (null until enough history is banked). */
 export async function getWorkloadContext(activeToday: number): Promise<WorkloadContext | null> {
-  const trend = await readTrend().catch(() => []);
-  return workloadContext(trend, activeToday, todayET());
+  const [trend, tuning] = await Promise.all([readTrend().catch(() => []), getTuning()]);
+  return workloadContext(trend, activeToday, todayET(), tuning);
 }
 
 /** Banked daily points, oldest → newest — feeds the cumulative flow diagram. */

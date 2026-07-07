@@ -1,6 +1,6 @@
 // The single source of truth for how Trello maps onto the board.
 // Change a Trello list name here (one place) and the whole app follows.
-import type { Flag, ProjectType, Status, Targets } from "./types";
+import type { Flag, ProjectType, Status, Targets, Tuning } from "./types";
 
 /**
  * Trello list names grouped by the status a department sees.
@@ -87,3 +87,44 @@ export const TREND_WINDOW_DAYS = 30;
 export const TREND_MIN_DAYS = 7;
 /** How far from the typical median counts as "busier"/"quieter" (percent). */
 export const WORKLOAD_BAND_PCT = 15;
+
+/** Floor on the refresh interval — protects against a polling cost trap. */
+export const MIN_REFRESH_MINUTES = 5;
+
+/** The built-in tuning, from the constants above — the default until an edit is saved. */
+export function defaultTuning(): Tuning {
+  return {
+    refreshMinutes: REFRESH_MS / 60_000,
+    turnaroundWindowDays: TURNAROUND_WINDOW_DAYS,
+    turnaroundMinSamples: TURNAROUND_MIN_SAMPLES,
+    turnaroundBufferDays: TURNAROUND_BUFFER_DAYS,
+    recentlyCompletedDays: RECENTLY_COMPLETED_DAYS,
+    recentlyCompletedMax: RECENTLY_COMPLETED_MAX,
+    trendWindowDays: TREND_WINDOW_DAYS,
+    trendMinDays: TREND_MIN_DAYS,
+    workloadBandPct: WORKLOAD_BAND_PCT,
+  };
+}
+
+/** Plain-English problems with a tuning config — empty means good to save. */
+export function validateTuning(t: Tuning): string[] {
+  const errors: string[] = [];
+  const check = (v: number, label: string, min = 1) => {
+    if (!Number.isFinite(v) || !Number.isInteger(v) || v < min) {
+      errors.push(`${label} must be a whole number of at least ${min}.`);
+    }
+  };
+  check(t.refreshMinutes, "Refresh interval (minutes)", MIN_REFRESH_MINUTES);
+  check(t.turnaroundWindowDays, "Turnaround window (days)");
+  check(t.turnaroundMinSamples, "Turnaround minimum samples");
+  check(t.turnaroundBufferDays, "Turnaround buffer (days)");
+  check(t.recentlyCompletedDays, "Recently-completed window (days)");
+  check(t.recentlyCompletedMax, "Recently-completed max");
+  check(t.trendWindowDays, "Workload comparison window (days)");
+  check(t.trendMinDays, "Workload minimum days");
+  check(t.workloadBandPct, "Workload band (percent)");
+  if (Number.isInteger(t.workloadBandPct) && t.workloadBandPct > 100) {
+    errors.push("Workload band (percent) can't exceed 100.");
+  }
+  return errors;
+}

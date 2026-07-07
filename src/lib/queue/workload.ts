@@ -1,6 +1,6 @@
 // Pure: compares today's active load to a typical recent day. No I/O.
-import { TREND_MIN_DAYS, TREND_WINDOW_DAYS, WORKLOAD_BAND_PCT } from "./config";
-import type { TrendPoint, WorkloadContext } from "./types";
+import { defaultTuning } from "./config";
+import type { TrendPoint, Tuning, WorkloadContext } from "./types";
 
 function median(values: number[]): number {
   const s = [...values].sort((a, b) => a - b);
@@ -12,28 +12,29 @@ function median(values: number[]): number {
  * @param trend banked daily points (any order)
  * @param activeToday today's active total
  * @param today YYYY-MM-DD to exclude from the "typical" baseline
- * Returns null until there are at least TREND_MIN_DAYS of prior history.
+ * Returns null until there are at least `tuning.trendMinDays` of prior history.
  */
 export function workloadContext(
   trend: TrendPoint[],
   activeToday: number,
   today: string,
+  tuning: Tuning = defaultTuning(),
 ): WorkloadContext | null {
   const prior = trend
     .filter((p) => p.date !== today)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, TREND_WINDOW_DAYS);
+    .slice(0, tuning.trendWindowDays);
 
-  if (prior.length < TREND_MIN_DAYS) return null;
+  if (prior.length < tuning.trendMinDays) return null;
 
   const typical = median(prior.map((p) => p.active));
   if (typical <= 0) return null;
 
   const pct = Math.round(((activeToday - typical) / typical) * 100);
   const level =
-    pct >= WORKLOAD_BAND_PCT
+    pct >= tuning.workloadBandPct
       ? "busier"
-      : pct <= -WORKLOAD_BAND_PCT
+      : pct <= -tuning.workloadBandPct
         ? "quieter"
         : "typical";
 

@@ -4,7 +4,7 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import type { QueueSnapshot } from "../trello/snapshot-types";
-import type { DepartmentConfig, TrendPoint, TrelloMapping, Targets } from "../queue/types";
+import type { DepartmentConfig, TrendPoint, TrelloMapping, Targets, Tuning } from "../queue/types";
 import type { ShowConfig } from "../queue/shows";
 
 const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
@@ -142,6 +142,23 @@ export async function writeDepartmentsRaw(depts: DepartmentConfig[]): Promise<vo
     return;
   }
   await redis.set(DEPTS_KEY, depts);
+}
+
+// Refresh + metric tuning, editable via /manager. `null` = never written.
+const TUNING_KEY = "wos:tuning";
+let memTuning: Tuning | null = null;
+
+export async function readTuningRaw(): Promise<Tuning | null> {
+  if (!redis) return memTuning;
+  return (await redis.get<Tuning>(TUNING_KEY)) ?? null;
+}
+
+export async function writeTuningRaw(tuning: Tuning): Promise<void> {
+  if (!redis) {
+    memTuning = tuning;
+    return;
+  }
+  await redis.set(TUNING_KEY, tuning);
 }
 
 // Last alert set we notified about (dedupes webhook pings across cron runs).

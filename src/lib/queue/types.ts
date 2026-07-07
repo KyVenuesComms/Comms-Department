@@ -42,6 +42,28 @@ export interface DepartmentConfig {
   aliases: string[];
 }
 
+/** Refresh cadence + metric-window tuning. Editable in KV. */
+export interface Tuning {
+  /** How often to re-read Trello, in minutes (floored at 5 — cost guard). */
+  refreshMinutes: number;
+  /** Only look at approvals from the last N days when computing turnaround. */
+  turnaroundWindowDays: number;
+  /** Don't quote a turnaround until there are at least this many samples. */
+  turnaroundMinSamples: number;
+  /** Buffer added to the median turnaround so quotes stay realistic. */
+  turnaroundBufferDays: number;
+  /** "Recently completed" shows jobs closed within this many days… */
+  recentlyCompletedDays: number;
+  /** …up to this many entries. */
+  recentlyCompletedMax: number;
+  /** Compare today's load against the median of the prior this-many days. */
+  trendWindowDays: number;
+  /** Don't show a workload read until this many prior days are banked. */
+  trendMinDays: number;
+  /** How far from the typical median counts as "busier"/"quieter" (percent). */
+  workloadBandPct: number;
+}
+
 /** Editable rules for how Trello converts onto the board. Stored in KV. */
 export interface TrelloMapping {
   /** Each Trello list → the stage it becomes. Lists not here are hidden. */
