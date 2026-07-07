@@ -5,6 +5,7 @@ import { Countdown } from "@/features/shows/Countdown";
 import { fmtDate } from "@/features/board/format";
 import { STAGE_META, LIVE_STAGES } from "@/features/board/stages";
 import { lastCallStatus, matchShow, showBySlug } from "@/lib/queue/shows";
+import { getShows } from "@/lib/queue/shows-store";
 import type { Project } from "@/lib/queue/types";
 import { getQueueSnapshot } from "@/lib/trello/snapshot";
 
@@ -16,7 +17,8 @@ const K = "text-[11px] font-bold uppercase tracking-[0.09em]";
 
 export default async function ShowPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const show = showBySlug(slug);
+  const shows = await getShows();
+  const show = showBySlug(slug, shows);
   if (!show) notFound();
 
   let snapshot = null;
@@ -64,7 +66,7 @@ export default async function ShowPage({ params }: { params: Promise<{ slug: str
     .slice(0, 5);
 
   // Recently shipped for this show (matched by name).
-  const shipped = (snapshot?.metrics.recentlyCompleted ?? []).filter((r) => matchShow(r.name) === slug).slice(0, 6);
+  const shipped = (snapshot?.metrics.recentlyCompleted ?? []).filter((r) => matchShow(r.name, undefined, shows) === slug).slice(0, 6);
 
   return (
     <div className="min-h-screen px-4 py-8 sm:px-8" style={{ background: "#E7E7E2" }}>

@@ -5,6 +5,7 @@ import "server-only";
 import { Redis } from "@upstash/redis";
 import type { QueueSnapshot } from "../trello/snapshot-types";
 import type { TrendPoint } from "../queue/types";
+import type { ShowConfig } from "../queue/shows";
 
 const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
 const token =
@@ -71,6 +72,24 @@ export async function writeLastSync(sync: LastSync): Promise<void> {
 export async function readLastSync(): Promise<LastSync | null> {
   if (!redis) return memSync;
   return (await redis.get<LastSync>(SYNC_KEY)) ?? null;
+}
+
+// Show/event config, editable via /manager. `null` = never written (callers
+// fall back to the built-in default seed); `[]` = explicitly emptied.
+const SHOWS_KEY = "wos:shows";
+let memShows: ShowConfig[] | null = null;
+
+export async function readShowsRaw(): Promise<ShowConfig[] | null> {
+  if (!redis) return memShows;
+  return (await redis.get<ShowConfig[]>(SHOWS_KEY)) ?? null;
+}
+
+export async function writeShowsRaw(shows: ShowConfig[]): Promise<void> {
+  if (!redis) {
+    memShows = shows;
+    return;
+  }
+  await redis.set(SHOWS_KEY, shows);
 }
 
 // Last alert set we notified about (dedupes webhook pings across cron runs).

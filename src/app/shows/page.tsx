@@ -1,16 +1,18 @@
 import { CalendarDays, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { lastCallStatus, SHOWS, showPhase } from "@/lib/queue/shows";
+import { lastCallStatus, showPhase } from "@/lib/queue/shows";
+import { getShows } from "@/lib/queue/shows-store";
 import { getQueueSnapshot } from "@/lib/trello/snapshot";
 
 export const dynamic = "force-dynamic";
 
 export default async function ShowsIndex() {
+  const shows = await getShows();
   let counts = new Map<string, number>();
   try {
     const s = await getQueueSnapshot();
     counts = new Map(
-      SHOWS.map((show) => [
+      shows.map((show) => [
         show.slug,
         [...s.requested, ...s.inProgress, ...s.outForApproval].filter((p) => p.show === show.slug).length,
       ]),
@@ -32,7 +34,7 @@ export default async function ShowsIndex() {
           </div>
           <h1 className="mt-1 text-[28px] font-extrabold tracking-[-0.015em]" style={{ color: "#131311" }}>Show pages</h1>
         </header>
-        {SHOWS.map((show) => {
+        {shows.map((show) => {
           const phase = showPhase(show, nowMs);
           const lastCall = lastCallStatus(show, nowMs);
           const label =

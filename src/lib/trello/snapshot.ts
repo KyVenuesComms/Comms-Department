@@ -4,6 +4,7 @@
 import "server-only";
 import { REFRESH_MS } from "../queue/config";
 import { sortProjects, toProject } from "../queue/map";
+import { getShows } from "../queue/shows-store";
 import { computeCockpit } from "../queue/cockpit";
 import { perDepartment, recentlyCompleted, stageEntryDates, turnaround } from "../queue/metrics";
 import { workloadContext } from "../queue/workload";
@@ -41,7 +42,8 @@ async function build(): Promise<QueueSnapshot> {
     }),
   ]);
 
-  const projects = cards.map(toProject);
+  const shows = await getShows();
+  const projects = cards.map((c) => toProject(c, shows));
   const enteredAt = stageEntryDates(moves);
   for (const p of projects) p.enteredStageAt = enteredAt.get(p.id) ?? null;
 

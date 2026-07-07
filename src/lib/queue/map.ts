@@ -1,7 +1,7 @@
 // Pure mapping logic: Trello shapes -> the board's shapes. No I/O here.
 import { FLAG_LABELS, LISTS_BY_STATUS, TYPE_LABELS } from "./config";
 import { parseDepartment } from "./departments";
-import { matchShow } from "./shows";
+import { matchShow, type ShowConfig } from "./shows";
 import type { Flag, Project, ProjectType, RawCard, Status } from "./types";
 
 /** Normalize a name for comparison: trim + lowercase. */
@@ -31,7 +31,7 @@ export function cardCreatedAt(id: string): string {
 }
 
 /** Turn a raw Trello card into a mapped Project. */
-export function toProject(card: RawCard): Project {
+export function toProject(card: RawCard, shows?: ShowConfig[]): Project {
   const flags: Flag[] = [];
   let type: ProjectType | null = null;
 
@@ -59,7 +59,7 @@ export function toProject(card: RawCard): Project {
     dueAt: card.due ?? null,
     dueComplete: card.dueComplete ?? false,
     assignee: card.assignee ?? null,
-    show: matchShow(card.name, card.desc),
+    show: matchShow(card.name, card.desc, shows),
   };
 }
 
