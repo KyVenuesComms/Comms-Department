@@ -3,8 +3,9 @@
 // in-memory (throttled) — so it works with or without KV.
 import "server-only";
 import { REFRESH_MS } from "../queue/config";
-import { sortProjects, toProject } from "../queue/map";
+import { setTrelloMapping, sortProjects, toProject } from "../queue/map";
 import { getShows } from "../queue/shows-store";
+import { getTrelloMapping } from "../queue/mapping-store";
 import { computeCockpit } from "../queue/cockpit";
 import { perDepartment, recentlyCompleted, stageEntryDates, turnaround } from "../queue/metrics";
 import { workloadContext } from "../queue/workload";
@@ -42,7 +43,10 @@ async function build(): Promise<QueueSnapshot> {
     }),
   ]);
 
-  const shows = await getShows();
+  // Hydrate the editable Trello mapping before mapping any cards — the metrics
+  // + cockpit math downstream read it synchronously via statusForList().
+  const [shows, mapping] = await Promise.all([getShows(), getTrelloMapping()]);
+  setTrelloMapping(mapping);
   const projects = cards.map((c) => toProject(c, shows));
   const enteredAt = stageEntryDates(moves);
   for (const p of projects) p.enteredStageAt = enteredAt.get(p.id) ?? null;

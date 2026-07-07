@@ -1,23 +1,27 @@
 // Pure mapping logic: Trello shapes -> the board's shapes. No I/O here.
-import { FLAG_LABELS, LISTS_BY_STATUS, TYPE_LABELS } from "./config";
+import { defaultMapping, flagByLabel, statusByList, typeByLabel } from "./mapping";
 import { parseDepartment } from "./departments";
 import { matchShow, type ShowConfig } from "./shows";
-import type { Flag, Project, ProjectType, RawCard, Status } from "./types";
+import type { Flag, Project, ProjectType, RawCard, Status, TrelloMapping } from "./types";
 
 /** Normalize a name for comparison: trim + lowercase. */
 function norm(s: string): string {
   return s.trim().toLowerCase();
 }
 
-// Reverse lookups, built once from the config.
-const STATUS_BY_LIST = new Map<string, Status>();
-for (const [status, lists] of Object.entries(LISTS_BY_STATUS)) {
-  for (const list of lists) STATUS_BY_LIST.set(norm(list), status as Status);
+// Reverse lookups. Seeded from the built-in default; the snapshot build swaps
+// in the stored mapping via setTrelloMapping() before mapping any cards.
+const DEFAULT = defaultMapping();
+let STATUS_BY_LIST = statusByList(DEFAULT);
+let FLAG_BY_NORM = flagByLabel(DEFAULT);
+let TYPE_BY_NORM = typeByLabel(DEFAULT);
+
+/** Swap in the active Trello mapping (called once per snapshot build). */
+export function setTrelloMapping(m: TrelloMapping): void {
+  STATUS_BY_LIST = statusByList(m);
+  FLAG_BY_NORM = flagByLabel(m);
+  TYPE_BY_NORM = typeByLabel(m);
 }
-const FLAG_BY_NORM = new Map<string, Flag>(FLAG_LABELS.map((f) => [norm(f), f]));
-const TYPE_BY_NORM = new Map<string, ProjectType>(
-  TYPE_LABELS.map((t) => [norm(t), t]),
-);
 
 /** Which status a Trello list maps to. Unknown lists are hidden by default. */
 export function statusForList(listName: string): Status {

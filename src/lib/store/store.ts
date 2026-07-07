@@ -4,7 +4,7 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import type { QueueSnapshot } from "../trello/snapshot-types";
-import type { TrendPoint } from "../queue/types";
+import type { TrendPoint, TrelloMapping } from "../queue/types";
 import type { ShowConfig } from "../queue/shows";
 
 const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
@@ -90,6 +90,24 @@ export async function writeShowsRaw(shows: ShowConfig[]): Promise<void> {
     return;
   }
   await redis.set(SHOWS_KEY, shows);
+}
+
+// Trello→board mapping, editable via /manager. `null` = never written
+// (callers fall back to the built-in default).
+const MAPPING_KEY = "wos:mapping";
+let memMapping: TrelloMapping | null = null;
+
+export async function readMappingRaw(): Promise<TrelloMapping | null> {
+  if (!redis) return memMapping;
+  return (await redis.get<TrelloMapping>(MAPPING_KEY)) ?? null;
+}
+
+export async function writeMappingRaw(mapping: TrelloMapping): Promise<void> {
+  if (!redis) {
+    memMapping = mapping;
+    return;
+  }
+  await redis.set(MAPPING_KEY, mapping);
 }
 
 // Last alert set we notified about (dedupes webhook pings across cron runs).

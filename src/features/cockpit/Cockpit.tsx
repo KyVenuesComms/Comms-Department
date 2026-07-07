@@ -9,6 +9,7 @@ import {
   Hourglass,
   Lock,
   RefreshCw,
+  SlidersHorizontal,
   TrendingDown,
   TrendingUp,
   Zap,
@@ -335,6 +336,13 @@ export function Cockpit({
             <h1 className="mt-1 text-[26px] font-extrabold tracking-[-0.015em]" style={{ color: "#131311" }}>The cockpit</h1>
           </div>
           <div className="flex items-center gap-3">
+            <a
+              href="/manager/mapping"
+              className="inline-flex items-center gap-1.5 rounded-[9px] border bg-white px-3 py-1.5 text-[12.5px] font-bold no-underline transition-colors hover:bg-[#F1F1EC]"
+              style={{ borderColor: "#E4E4DE", color: "#3A3A34" }}
+            >
+              <SlidersHorizontal size={13} aria-hidden="true" /> Mapping
+            </a>
             <a
               href="/manager/shows"
               className="inline-flex items-center gap-1.5 rounded-[9px] border bg-white px-3 py-1.5 text-[12.5px] font-bold no-underline transition-colors hover:bg-[#F1F1EC]"

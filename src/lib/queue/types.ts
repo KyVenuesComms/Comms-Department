@@ -22,6 +22,19 @@ export interface RawLabel {
   name: string;
 }
 
+/** The stages a Trello list can map to (everything else is hidden). */
+export type ListStatus = Exclude<Status, "hidden">;
+
+/** Editable rules for how Trello converts onto the board. Stored in KV. */
+export interface TrelloMapping {
+  /** Each Trello list → the stage it becomes. Lists not here are hidden. */
+  lists: { list: string; status: ListStatus }[];
+  /** Trello label texts that count as each flag (lowercase). */
+  flagAliases: Record<Flag, string[]>;
+  /** Trello label texts that count as each project type (lowercase). */
+  typeAliases: Record<ProjectType, string[]>;
+}
+
 /** A card as it comes back from the Trello API (only the fields we use). */
 export interface RawCard {
   id: string;

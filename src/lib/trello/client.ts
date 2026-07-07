@@ -78,6 +78,20 @@ export async function fetchBoardCards(): Promise<RawCard[]> {
   }));
 }
 
+/** Names of every open list on the board — feeds the mapping editor. */
+export async function fetchBoardLists(): Promise<string[]> {
+  const { boardId } = creds();
+  const lists = await get<TrelloList[]>(`/boards/${boardId}/lists?fields=name&filter=open`);
+  return lists.map((l) => l.name).filter(Boolean);
+}
+
+/** Distinct label texts on the board — feeds the mapping editor's flag/type pickers. */
+export async function fetchBoardLabels(): Promise<string[]> {
+  const { boardId } = creds();
+  const labels = await get<{ name: string }[]>(`/boards/${boardId}/labels?fields=name&limit=1000`);
+  return [...new Set(labels.map((l) => l.name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
 /**
  * Creation timestamps of ARCHIVED cards (creation time is encoded in the card
  * id, so we fetch ids only). Paginated defensively; the archive is small today
